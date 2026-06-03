@@ -161,7 +161,7 @@ def launch_setup(context, *args, **kwargs):
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='0'),
-        DeclareLaunchArgument('gz_world', default_value='default'),
+        DeclareLaunchArgument('gz_world', default_value='interception'),
         DeclareLaunchArgument('use_rviz', default_value='true'),
         DeclareLaunchArgument('xpos', default_value='0.0'),
         DeclareLaunchArgument('ypos', default_value='0.0'),

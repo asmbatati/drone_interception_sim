@@ -59,7 +59,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('headless', default_value='0',
                               description='1 = run Gazebo server-only (no GUI)'),
-        DeclareLaunchArgument('world', default_value='default',
+        DeclareLaunchArgument('world', default_value='interception',
                               description='Gazebo world name shared by both drones'),
         DeclareLaunchArgument('use_rviz', default_value='true'),
         DeclareLaunchArgument('target_spawn_delay', default_value='8.0',
