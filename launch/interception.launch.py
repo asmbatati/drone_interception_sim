@@ -30,6 +30,7 @@ def generate_launch_description():
     target_spawn_delay = LaunchConfiguration('target_spawn_delay')
     px4_dir = LaunchConfiguration('px4_dir')
     gz_partition = LaunchConfiguration('gz_partition')
+    ros_domain_id = LaunchConfiguration('ros_domain_id')
     target_x = LaunchConfiguration('target_x')
 
     pkg = FindPackageShare('drone_interception_sim')
@@ -47,6 +48,7 @@ def generate_launch_description():
             'use_rviz': use_rviz,
             'px4_dir': px4_dir,
             'gz_partition': gz_partition,
+            'ros_domain_id': ros_domain_id,
             'xpos': '0.0', 'ypos': '0.0', 'zpos': '0.1',
         }.items())
 
@@ -59,6 +61,7 @@ def generate_launch_description():
             'gz_world': world,
             'px4_dir': px4_dir,
             'gz_partition': gz_partition,
+            'ros_domain_id': ros_domain_id,
             'xpos': target_x, 'ypos': '0.0', 'zpos': '0.1',
         }.items())
 
@@ -79,6 +82,9 @@ def generate_launch_description():
         DeclareLaunchArgument('gz_partition', default_value='d2d_intercept',
                               description='Gazebo transport partition isolating this sim '
                                           '(empty = default partition)'),
+        DeclareLaunchArgument('ros_domain_id', default_value='77',
+                              description='ROS_DOMAIN_ID isolating this sim from other '
+                                          'simulators (esp. /clock). Match in all terminals.'),
         DeclareLaunchArgument('target_x', default_value='10.0',
                               description='Target spawn X offset from the interceptor'),
         interceptor,

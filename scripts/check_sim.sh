@@ -9,6 +9,11 @@
 set -u
 
 echo "RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-<unset>}"
+echo "ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-<unset>}  (sim default is 77; must match)"
+echo
+
+echo "===== /clock publishers (MUST be exactly 1 — else other sims collide) ====="
+timeout 4 ros2 topic info /clock 2>/dev/null | grep -i "publisher count" || echo "  (no /clock — wrong domain or sim not up)"
 echo
 
 check_connected() {

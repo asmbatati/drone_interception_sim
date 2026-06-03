@@ -30,6 +30,10 @@ DEFAULT_PX4_DIR = '/home/asmbatati/drone_interception_ws/PX4-Autopilot'
 # default partition. External gz clients (gz gui/topic) must use the same value.
 DEFAULT_GZ_PARTITION = 'd2d_intercept'
 
+# Isolate the ROS graph (esp. /clock) from other simulators. Every terminal that
+# talks to this sim must export the same ROS_DOMAIN_ID. Empty = inherit.
+DEFAULT_ROS_DOMAIN_ID = '77'
+
 # Interceptor identity (see plan: spawn scheme table)
 NS = 'interceptor'
 MODEL = 'x500_d435'
@@ -58,6 +62,15 @@ def launch_setup(context, *args, **kwargs):
     # instead of attaching to another sim's server on the default partition.
     if gz_partition:
         os.environ['GZ_PARTITION'] = gz_partition
+
+    # Isolate the ROS graph (esp. /clock) from other simulators on the machine.
+    # /clock is a ROS topic, so GZ_PARTITION is not enough: without a distinct
+    # ROS_DOMAIN_ID, multiple sims' /clock collide -> "jump back in time" and PX4
+    # arming is temporarily rejected. NOTE: every terminal that talks to this sim
+    # (controllers, ros2 topic echo, RViz) must use the same ROS_DOMAIN_ID.
+    ros_domain_id = LaunchConfiguration('ros_domain_id').perform(context)
+    if ros_domain_id:
+        os.environ['ROS_DOMAIN_ID'] = ros_domain_id
 
     pkg_share = get_package_share_directory('drone_interception_sim')
 
@@ -194,5 +207,8 @@ def generate_launch_description():
         DeclareLaunchArgument('gz_partition', default_value=DEFAULT_GZ_PARTITION,
                               description='Gazebo transport partition (isolates this sim; '
                                           'empty = default partition)'),
+        DeclareLaunchArgument('ros_domain_id', default_value=DEFAULT_ROS_DOMAIN_ID,
+                              description='ROS_DOMAIN_ID isolating this sim (esp. /clock); '
+                                          'empty = inherit. Match it in all terminals.'),
         OpaqueFunction(function=launch_setup),
     ])

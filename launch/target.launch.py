@@ -24,6 +24,8 @@ DEFAULT_PX4_DIR = '/home/asmbatati/drone_interception_ws/PX4-Autopilot'
 # Must match the interceptor's gz_partition so the target attaches to the SAME
 # (already-running) Gazebo server.
 DEFAULT_GZ_PARTITION = 'd2d_intercept'
+# Must match the interceptor's ROS_DOMAIN_ID so they share one ROS graph.
+DEFAULT_ROS_DOMAIN_ID = '77'
 
 # Target identity (see plan: spawn scheme table)
 NS = 'target'
@@ -52,6 +54,10 @@ def launch_setup(context, *args, **kwargs):
     # Same partition as the interceptor so we attach to its running gz server.
     if gz_partition:
         os.environ['GZ_PARTITION'] = gz_partition
+    # Same ROS graph as the interceptor (isolated from other sims' /clock).
+    ros_domain_id = LaunchConfiguration('ros_domain_id').perform(context)
+    if ros_domain_id:
+        os.environ['ROS_DOMAIN_ID'] = ros_domain_id
 
     pkg_share = get_package_share_directory('drone_interception_sim')
 
@@ -138,5 +144,7 @@ def generate_launch_description():
                               description='PX4-Autopilot dir (in-tree by default)'),
         DeclareLaunchArgument('gz_partition', default_value=DEFAULT_GZ_PARTITION,
                               description='Gazebo transport partition (must match interceptor)'),
+        DeclareLaunchArgument('ros_domain_id', default_value=DEFAULT_ROS_DOMAIN_ID,
+                              description='ROS_DOMAIN_ID (must match interceptor)'),
         OpaqueFunction(function=launch_setup),
     ])

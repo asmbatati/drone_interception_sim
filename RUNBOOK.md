@@ -1,9 +1,24 @@
 # Interception runbook
 
 End-to-end recipes for the three interception methods + benchmarking. One
-terminal per block; **every terminal must use the same `RMW_IMPLEMENTATION`**
-(your `.bashrc` now exports `rmw_zenoh_cpp`). Each launch sources are assumed:
-`cd ~/drone_interception_ws/ros2_ws && source install/setup.bash`.
+terminal per block. **Every terminal that talks to the sim must use the same
+`RMW_IMPLEMENTATION` AND the same `ROS_DOMAIN_ID`** — otherwise nodes won't see
+each other, and (critically) other simulators on the machine will collide on
+`/clock`, causing "jump back in time" and PX4 refusing to arm.
+
+Put this at the top of **every** terminal (the sim defaults to domain 77):
+
+```bash
+export RMW_IMPLEMENTATION=rmw_zenoh_cpp     # matches your .bashrc
+export ROS_DOMAIN_ID=77                      # matches the sim's default
+cd ~/drone_interception_ws/ros2_ws && source install/setup.bash
+```
+
+> Isolation: the sim runs on `GZ_PARTITION=d2d_intercept` (Gazebo transport) and
+> `ROS_DOMAIN_ID=77` (ROS graph) so it coexists with other sims (drone_arm_ws,
+> text2geometry, …). Override with `ros_domain_id:=N gz_partition:=name`, or
+> `ros_domain_id:=''` to inherit the shell. External `gz` tools need
+> `GZ_PARTITION=d2d_intercept`.
 
 > Preconditions: PX4 built (`make px4_sitl` in the in-tree PX4), `uav_gz_sim`
 > install.sh run once (models/airframes in PX4), workspace built. If you also
