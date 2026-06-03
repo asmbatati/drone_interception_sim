@@ -11,8 +11,9 @@ import os
 
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            OpaqueFunction, SetEnvironmentVariable)
+from launch.actions import (DeclareLaunchArgument, ExecuteProcess,
+                            IncludeLaunchDescription, OpaqueFunction,
+                            SetEnvironmentVariable)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -50,6 +51,17 @@ def launch_setup(context, *args, **kwargs):
     pkg_share = get_package_share_directory('drone_interception_sim')
 
     actions = []
+
+    # RMW is inherited from the environment (whatever RMW_IMPLEMENTATION is
+    # exported), so all ROS nodes here already use it. Zenoh additionally needs
+    # its router daemon running for discovery, so start it if it isn't already.
+    rmw = os.environ.get('RMW_IMPLEMENTATION', '')
+    if 'zenoh' in rmw:
+        actions.append(ExecuteProcess(
+            cmd=['bash', '-c',
+                 'pgrep -f rmw_zenohd >/dev/null 2>&1 || '
+                 'exec ros2 run rmw_zenoh_cpp rmw_zenohd'],
+            name='zenoh_router', output='log'))
 
     # Make headless real: PX4's gz backend honours HEADLESS=1 (runs `gz sim -s`).
     if headless == '1':
