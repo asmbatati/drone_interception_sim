@@ -30,9 +30,13 @@ def generate_launch_description():
     target_spawn_delay = LaunchConfiguration('target_spawn_delay')
     px4_dir = LaunchConfiguration('px4_dir')
     gz_partition = LaunchConfiguration('gz_partition')
+    target_x = LaunchConfiguration('target_x')
 
     pkg = FindPackageShare('drone_interception_sim')
 
+    # Spawn poses are passed EXPLICITLY here: launch-argument values leak across
+    # sibling IncludeLaunchDescription scopes, so relying on each file's xpos
+    # default would put both drones at 0,0 (on top of each other).
     interceptor = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([pkg, 'launch', 'interceptor.launch.py'])
@@ -43,6 +47,7 @@ def generate_launch_description():
             'use_rviz': use_rviz,
             'px4_dir': px4_dir,
             'gz_partition': gz_partition,
+            'xpos': '0.0', 'ypos': '0.0', 'zpos': '0.1',
         }.items())
 
     target = IncludeLaunchDescription(
@@ -54,6 +59,7 @@ def generate_launch_description():
             'gz_world': world,
             'px4_dir': px4_dir,
             'gz_partition': gz_partition,
+            'xpos': target_x, 'ypos': '0.0', 'zpos': '0.1',
         }.items())
 
     # Delay the target so the interceptor's PX4 brings up the single gz server first.
@@ -73,6 +79,8 @@ def generate_launch_description():
         DeclareLaunchArgument('gz_partition', default_value='d2d_intercept',
                               description='Gazebo transport partition isolating this sim '
                                           '(empty = default partition)'),
+        DeclareLaunchArgument('target_x', default_value='10.0',
+                              description='Target spawn X offset from the interceptor'),
         interceptor,
         delayed_target,
     ])

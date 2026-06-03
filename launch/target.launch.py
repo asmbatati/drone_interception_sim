@@ -93,10 +93,12 @@ def launch_setup(context, *args, **kwargs):
         }.items()))
 
     # --- TF tree (target only; map/global/map_frd come from interceptor launch) ---
+    # Offset map->target/odom by the spawn pose so RViz shows the target at its
+    # true world location (its EKF/odom origin is at its spawn point).
     actions.append(Node(
         package='tf2_ros', executable='static_transform_publisher',
         name='map2px4_' + NS + '_tf_node',
-        arguments=['0', '0', '0', '0', '0', '0', 'map', NS + '/odom'],
+        arguments=[xpos, ypos, zpos, '0', '0', '0', 'map', NS + '/odom'],
         parameters=[{'use_sim_time': True}], output='log'))
 
     actions.append(Node(
