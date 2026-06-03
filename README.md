@@ -15,7 +15,7 @@ instance with its own MAVROS stack:
 |---|---|---|
 | namespace | `interceptor` | `target` |
 | model | `x500_d435` | `x3_uav` |
-| PX4 autostart | `4020` | `4021` |
+| PX4 autostart | `4020` | `4022` |
 | instance (`px4 -i`) | `0` | `1` |
 | MAVROS `fcu_url` | `udp://:14541@127.0.0.1:14558` | `udp://:14542@127.0.0.1:14559` |
 | `tgt_system` | `1` | `2` |
@@ -26,12 +26,17 @@ self-arms into OFFBOARD; the interceptor is left for the interception
 controllers (`d2dtracker_interception`, `d2dtracker_states` BT/FSM,
 `d2dtracker_rl`) to drive.
 
-## Prerequisites
+## PX4 directory
 
-1. `export PX4_DIR=/path/to/PX4-Autopilot`
-2. Run `uav_gz_sim/install.sh` once (copies models + airframes 4020/4021 to PX4).
-3. Run this package's `install.sh` only if you add interception-specific
-   worlds/airframes (none by default).
+The launches default `PX4_DIR` to the project's **in-tree** PX4
+(`<workspace>/PX4-Autopilot`, beside `ros2_ws`) regardless of any `PX4_DIR` in
+your shell. Override per launch with `px4_dir:=/path/to/PX4-Autopilot`.
+
+That in-tree PX4 must be built (`make px4_sitl`) and provide the airframes used
+here: `4020_gz_x500_d435` (interceptor) and `4022_gz_x3_uav` (target), plus the
+`x500_d435` and `x3_uav` gz models. (Note: the in-tree PX4 numbers `x3_uav` as
+`4022`; a `uav_gz_sim`-provisioned PX4 uses `4021` — adjust `px4_autostart_id`
+if you point at a differently-provisioned tree.)
 
 ## Build & run
 

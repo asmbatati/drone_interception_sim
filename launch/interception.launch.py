@@ -28,6 +28,7 @@ def generate_launch_description():
     world = LaunchConfiguration('world')
     use_rviz = LaunchConfiguration('use_rviz')
     target_spawn_delay = LaunchConfiguration('target_spawn_delay')
+    px4_dir = LaunchConfiguration('px4_dir')
 
     pkg = FindPackageShare('drone_interception_sim')
 
@@ -39,6 +40,7 @@ def generate_launch_description():
             'headless': headless,
             'gz_world': world,
             'use_rviz': use_rviz,
+            'px4_dir': px4_dir,
         }.items())
 
     target = IncludeLaunchDescription(
@@ -48,6 +50,7 @@ def generate_launch_description():
         launch_arguments={
             'headless': headless,
             'gz_world': world,
+            'px4_dir': px4_dir,
         }.items())
 
     # Delay the target so the interceptor's PX4 brings up the single gz server first.
@@ -61,6 +64,9 @@ def generate_launch_description():
         DeclareLaunchArgument('use_rviz', default_value='true'),
         DeclareLaunchArgument('target_spawn_delay', default_value='8.0',
                               description='Seconds to wait before spawning the target'),
+        DeclareLaunchArgument('px4_dir',
+                              default_value='/home/asmbatati/drone_interception_ws/PX4-Autopilot',
+                              description='PX4-Autopilot dir (in-tree by default)'),
         interceptor,
         delayed_target,
     ])

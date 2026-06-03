@@ -18,10 +18,14 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+# Project's in-tree PX4 (the one beside ros2_ws). Override with px4_dir:=/path.
+DEFAULT_PX4_DIR = '/home/asmbatati/drone_interception_ws/PX4-Autopilot'
+
 # Target identity (see plan: spawn scheme table)
 NS = 'target'
 MODEL = 'x3_uav'
-AUTOSTART_ID = '4021'
+# In the in-tree PX4, x3_uav is airframe 4022 (4021 there is x500_lidar_camera).
+AUTOSTART_ID = '4022'
 INSTANCE_ID = '1'
 # PX4 SITL port convention: instance i -> listen 14540+i, remote 14557+i.
 FCU_URL = 'udp://:14541@127.0.0.1:14558'
@@ -34,6 +38,11 @@ def launch_setup(context, *args, **kwargs):
     xpos = LaunchConfiguration('xpos').perform(context)
     ypos = LaunchConfiguration('ypos').perform(context)
     zpos = LaunchConfiguration('zpos').perform(context)
+    px4_dir = LaunchConfiguration('px4_dir').perform(context)
+
+    # Use the project's in-tree PX4 (overridable via px4_dir:=).
+    if px4_dir:
+        os.environ['PX4_DIR'] = px4_dir
 
     pkg_share = get_package_share_directory('drone_interception_sim')
 
@@ -112,5 +121,7 @@ def generate_launch_description():
         DeclareLaunchArgument('xpos', default_value='10.0'),
         DeclareLaunchArgument('ypos', default_value='0.0'),
         DeclareLaunchArgument('zpos', default_value='0.1'),
+        DeclareLaunchArgument('px4_dir', default_value=DEFAULT_PX4_DIR,
+                              description='PX4-Autopilot dir (in-tree by default)'),
         OpaqueFunction(function=launch_setup),
     ])

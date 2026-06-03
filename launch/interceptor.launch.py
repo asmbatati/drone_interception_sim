@@ -20,6 +20,10 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+# Project's in-tree PX4 (the one beside ros2_ws), used by default instead of any
+# ~/PX4-Autopilot. Override with px4_dir:=/path on the command line.
+DEFAULT_PX4_DIR = '/home/asmbatati/drone_interception_ws/PX4-Autopilot'
+
 # Interceptor identity (see plan: spawn scheme table)
 NS = 'interceptor'
 MODEL = 'x500_d435'
@@ -36,6 +40,12 @@ def launch_setup(context, *args, **kwargs):
     xpos = LaunchConfiguration('xpos').perform(context)
     ypos = LaunchConfiguration('ypos').perform(context)
     zpos = LaunchConfiguration('zpos').perform(context)
+    px4_dir = LaunchConfiguration('px4_dir').perform(context)
+
+    # Use the project's in-tree PX4 (overridable via px4_dir:=). gz_sim.launch.py
+    # reads PX4_DIR from the environment, so set it here before the include.
+    if px4_dir:
+        os.environ['PX4_DIR'] = px4_dir
 
     pkg_share = get_package_share_directory('drone_interception_sim')
 
@@ -156,5 +166,7 @@ def generate_launch_description():
         DeclareLaunchArgument('xpos', default_value='0.0'),
         DeclareLaunchArgument('ypos', default_value='0.0'),
         DeclareLaunchArgument('zpos', default_value='0.1'),
+        DeclareLaunchArgument('px4_dir', default_value=DEFAULT_PX4_DIR,
+                              description='PX4-Autopilot dir (in-tree by default)'),
         OpaqueFunction(function=launch_setup),
     ])
