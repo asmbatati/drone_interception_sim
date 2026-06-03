@@ -1,0 +1,10 @@
+# Parameters for the scripted target drone (flown by target_trajectory_node).
+# Launched under the `target` namespace with node name `target_trajectory_node`.
+/target/target_trajectory_node:
+  ros__parameters:
+    trajectory_type: "circle"     # "circle" | "infty"
+    radius: 6.0                   # metres
+    omega: 0.4                    # rad/s (angular speed along the path)
+    normal_vector: [0.0, 0.0, 1.0]
+    center: [10.0, 0.0, 4.0]      # ENU centre of the path (matches target spawn x)
+    auto_arm: true                # node switches to OFFBOARD and arms itself
