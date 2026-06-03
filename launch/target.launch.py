@@ -23,7 +23,8 @@ NS = 'target'
 MODEL = 'x3_uav'
 AUTOSTART_ID = '4021'
 INSTANCE_ID = '1'
-FCU_URL = 'udp://:14542@127.0.0.1:14559'
+# PX4 SITL port convention: instance i -> listen 14540+i, remote 14557+i.
+FCU_URL = 'udp://:14541@127.0.0.1:14558'
 TGT_SYSTEM = '2'   # PX4 MAV_SYS_ID = instance_id + 1
 
 

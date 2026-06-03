@@ -25,7 +25,8 @@ NS = 'interceptor'
 MODEL = 'x500_d435'
 AUTOSTART_ID = '4020'
 INSTANCE_ID = '0'
-FCU_URL = 'udp://:14541@127.0.0.1:14558'
+# PX4 SITL port convention: instance i -> listen 14540+i, remote 14557+i.
+FCU_URL = 'udp://:14540@127.0.0.1:14557'
 TGT_SYSTEM = '1'   # PX4 MAV_SYS_ID = instance_id + 1
 
 
