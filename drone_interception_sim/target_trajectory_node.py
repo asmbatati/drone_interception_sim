@@ -10,7 +10,7 @@ All topics/services are relative, so the node works under any namespace
 (e.g. launched under `target` -> /target/mavros/...).
 """
 from geometry_msgs.msg import PoseStamped
-from mavros_msgs.msg import PositionTarget, State
+from mavros_msgs.msg import PositionTarget, State, StatusText
 from mavros_msgs.srv import CommandBool, SetMode
 from nav_msgs.msg import Odometry, Path
 import numpy as np
@@ -78,6 +78,9 @@ class TargetTrajectory(Node):
                                  self.stateCallback, qos_state)
         self.create_subscription(Odometry, 'mavros/local_position/odom',
                                  self.odomCallback, qos_profile_sensor_data)
+        # PX4 reports arming-denied / preflight reasons here.
+        self.create_subscription(StatusText, 'mavros/statustext/recv',
+                                 self.statusTextCallback, qos_profile_sensor_data)
         if self.evade_:
             self.create_subscription(Odometry, 'interceptor_odom',
                                      self.interceptorCallback, qos_profile_sensor_data)
@@ -104,6 +107,10 @@ class TargetTrajectory(Node):
 
     def interceptorCallback(self, msg: Odometry):
         self.interceptor_odom_ = msg
+
+    def statusTextCallback(self, msg: StatusText):
+        # Surface PX4 messages (arming denied / preflight failures) to the log.
+        self.get_logger().warn(f'PX4: {msg.text}')
 
     def _evasion_offset(self):
         """Horizontal displacement (target-local) pushing away from the interceptor."""
@@ -142,8 +149,19 @@ class TargetTrajectory(Node):
         if not self.state_.armed and self.arming_client_.service_is_ready():
             req = CommandBool.Request()
             req.value = True
-            self.arming_client_.call_async(req)
+            future = self.arming_client_.call_async(req)
+            future.add_done_callback(self._arm_result_cb)
             self.get_logger().info('Target: requesting arm')
+
+    def _arm_result_cb(self, future):
+        try:
+            resp = future.result()
+            if not resp.success:
+                self.get_logger().warn(
+                    f'Target arm rejected (success={resp.success}, '
+                    f'result={resp.result}) - check PX4 statustext above.')
+        except Exception as e:  # noqa: BLE001
+            self.get_logger().error(f'Target arm service call failed: {e}')
 
     def cmdloopCallback(self):
         t = Clock().now().nanoseconds / 1e9 - self.t0_
