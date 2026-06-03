@@ -72,6 +72,24 @@ to whatever gz server is already up and the model spawn fails
 - **External gz tools must match it**: `GZ_PARTITION=d2d_intercept gz topic -l`,
   `GZ_PARTITION=d2d_intercept gz sim -g` (GUI), etc.
 
+## Scaling to N drones
+
+The spawn scheme generalizes: drone `i` uses PX4 instance `i`, namespace of your
+choice, `PX4_GZ_MODEL`/airframe for its model, MAVLink `fcu_url`
+`udp://:1454{i}@127.0.0.1:1455{7+i}`, and `tgt_system = i+1`. To add more
+vehicles, copy `target.launch.py`, bump `INSTANCE_ID`/`FCU_URL`/`TGT_SYSTEM`/
+`MODEL`/`AUTOSTART_ID`, keep the **same** `gz_world` + `gz_partition` (so they
+share one Gazebo server), and start each after the world owner with a
+`TimerAction`. Only the first launch carries the world + RViz.
+
+## Evasive target
+
+The scripted target can reactively flee the interceptor. Enable it in
+`config/target_trajectory.yaml` (`evade: true`, `evade_distance`, `evade_gain`)
+or per-run; it then subscribes to the interceptor odom (remapped in
+`target.launch.py`) and adds a repulsion offset when the interceptor closes in.
+Useful as a harder RL/strategy benchmark than the fixed circle/figure-8.
+
 ## Notes
 
 - **Single Gazebo server**: both drones share the identical `world` arg; the

@@ -8,3 +8,10 @@
     normal_vector: [0.0, 0.0, 1.0]
     center: [10.0, 0.0, 4.0]      # ENU centre of the path (matches target spawn x)
     auto_arm: true                # node switches to OFFBOARD and arms itself
+    # Reactive evasion (off by default). When on, the target subscribes to the
+    # interceptor odom and pushes away from it when within evade_distance.
+    evade: false
+    evade_distance: 6.0
+    evade_gain: 4.0
+    target_spawn: [10.0, 0.0, 0.0]
+    interceptor_spawn: [0.0, 0.0, 0.0]

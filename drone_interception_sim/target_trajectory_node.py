@@ -34,6 +34,12 @@ class TargetTrajectory(Node):
         self.declare_parameter('normal_vector', [0., 0., 1.])
         self.declare_parameter('center', [0., 0., 3.0])
         self.declare_parameter('auto_arm', True)
+        # Reactive evasion: push away from the interceptor when it gets close.
+        self.declare_parameter('evade', False)
+        self.declare_parameter('evade_distance', 6.0)
+        self.declare_parameter('evade_gain', 4.0)
+        self.declare_parameter('target_spawn', [10.0, 0.0, 0.0])
+        self.declare_parameter('interceptor_spawn', [0.0, 0.0, 0.0])
 
         self.radius_ = self.get_parameter('radius').value
         self.omega_ = self.get_parameter('omega').value
@@ -41,6 +47,11 @@ class TargetTrajectory(Node):
         self.normal_vector_ = self.get_parameter('normal_vector').value
         self.center_ = self.get_parameter('center').value
         self.auto_arm_ = self.get_parameter('auto_arm').value
+        self.evade_ = self.get_parameter('evade').value
+        self.evade_distance_ = self.get_parameter('evade_distance').value
+        self.evade_gain_ = self.get_parameter('evade_gain').value
+        self.target_spawn_ = list(self.get_parameter('target_spawn').value)
+        self.interceptor_spawn_ = list(self.get_parameter('interceptor_spawn').value)
 
         if self.trajectory_type_ == 'circle':
             self.trajectory_generator_ = Circle3D(
@@ -61,11 +72,15 @@ class TargetTrajectory(Node):
 
         self.odom_ = Odometry()
         self.state_ = State()
+        self.interceptor_odom_ = None
 
         self.create_subscription(State, 'mavros/state',
                                  self.stateCallback, qos_state)
         self.create_subscription(Odometry, 'mavros/local_position/odom',
                                  self.odomCallback, qos_profile_sensor_data)
+        if self.evade_:
+            self.create_subscription(Odometry, 'interceptor_odom',
+                                     self.interceptorCallback, qos_profile_sensor_data)
 
         self.setpoint_pub_ = self.create_publisher(
             PositionTarget, 'mavros/setpoint_raw/local', qos_profile_sensor_data)
@@ -86,6 +101,30 @@ class TargetTrajectory(Node):
 
     def odomCallback(self, msg: Odometry):
         self.odom_ = msg
+
+    def interceptorCallback(self, msg: Odometry):
+        self.interceptor_odom_ = msg
+
+    def _evasion_offset(self):
+        """Horizontal displacement (target-local) pushing away from the interceptor."""
+        if not self.evade_ or self.interceptor_odom_ is None:
+            return np.zeros(3)
+        ip = self.interceptor_odom_.pose.pose.position
+        tp = self.odom_.pose.pose.position
+        # Convert both to a common (world) frame via spawn offsets.
+        i_world = np.array([ip.x + self.interceptor_spawn_[0],
+                            ip.y + self.interceptor_spawn_[1],
+                            ip.z + self.interceptor_spawn_[2]])
+        t_world = np.array([tp.x + self.target_spawn_[0],
+                            tp.y + self.target_spawn_[1],
+                            tp.z + self.target_spawn_[2]])
+        away = t_world - i_world
+        dist = float(np.linalg.norm(away))
+        if dist >= self.evade_distance_ or dist < 1e-6:
+            return np.zeros(3)
+        # Stronger push the closer the interceptor is (translation = frame-invariant).
+        scale = self.evade_gain_ * (1.0 - dist / self.evade_distance_)
+        return (away / dist) * scale
 
     def armOffboardCallback(self):
         """Switch to OFFBOARD and arm once enough setpoints have been streamed."""
@@ -108,7 +147,9 @@ class TargetTrajectory(Node):
 
     def cmdloopCallback(self):
         t = Clock().now().nanoseconds / 1e9 - self.t0_
-        point = self.trajectory_generator_.generate_trajectory_setpoint(t)
+        point = np.asarray(self.trajectory_generator_.generate_trajectory_setpoint(t),
+                           dtype=float)
+        point = point + self._evasion_offset()   # zero unless evading
 
         frame_id = self.odom_.header.frame_id or 'map'
         sp = PositionTarget()
