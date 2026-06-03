@@ -59,6 +59,19 @@ ros2 topic echo /interceptor/mavros/state --once
 ros2 topic echo /target/mavros/state --once     # connected: true
 ```
 
+## Gazebo partition isolation
+
+The launches set **`GZ_PARTITION=d2d_intercept`** by default so this sim spins up
+its **own** Gazebo server and never collides with another PX4+gz sim running on
+the same machine (a different workspace, etc.). Without isolation, PX4 attaches
+to whatever gz server is already up and the model spawn fails
+(`/world/interception/create` not found → `Service call timed out`).
+
+- Override or disable: `gz_partition:=my_part` (or `gz_partition:=` for the
+  default shared partition).
+- **External gz tools must match it**: `GZ_PARTITION=d2d_intercept gz topic -l`,
+  `GZ_PARTITION=d2d_intercept gz sim -g` (GUI), etc.
+
 ## Notes
 
 - **Single Gazebo server**: both drones share the identical `world` arg; the

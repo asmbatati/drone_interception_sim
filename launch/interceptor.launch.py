@@ -25,6 +25,11 @@ from launch_ros.substitutions import FindPackageShare
 # ~/PX4-Autopilot. Override with px4_dir:=/path on the command line.
 DEFAULT_PX4_DIR = '/home/asmbatati/drone_interception_ws/PX4-Autopilot'
 
+# Isolate this sim's Gazebo transport so it never collides with another PX4+gz
+# sim on the same machine (e.g. a different workspace). Set empty to share the
+# default partition. External gz clients (gz gui/topic) must use the same value.
+DEFAULT_GZ_PARTITION = 'd2d_intercept'
+
 # Interceptor identity (see plan: spawn scheme table)
 NS = 'interceptor'
 MODEL = 'x500_d435'
@@ -42,11 +47,17 @@ def launch_setup(context, *args, **kwargs):
     ypos = LaunchConfiguration('ypos').perform(context)
     zpos = LaunchConfiguration('zpos').perform(context)
     px4_dir = LaunchConfiguration('px4_dir').perform(context)
+    gz_partition = LaunchConfiguration('gz_partition').perform(context)
 
     # Use the project's in-tree PX4 (overridable via px4_dir:=). gz_sim.launch.py
     # reads PX4_DIR from the environment, so set it here before the include.
     if px4_dir:
         os.environ['PX4_DIR'] = px4_dir
+
+    # Isolate Gazebo transport so PX4 starts its OWN gz server for this world
+    # instead of attaching to another sim's server on the default partition.
+    if gz_partition:
+        os.environ['GZ_PARTITION'] = gz_partition
 
     pkg_share = get_package_share_directory('drone_interception_sim')
 
@@ -180,5 +191,8 @@ def generate_launch_description():
         DeclareLaunchArgument('zpos', default_value='0.1'),
         DeclareLaunchArgument('px4_dir', default_value=DEFAULT_PX4_DIR,
                               description='PX4-Autopilot dir (in-tree by default)'),
+        DeclareLaunchArgument('gz_partition', default_value=DEFAULT_GZ_PARTITION,
+                              description='Gazebo transport partition (isolates this sim; '
+                                          'empty = default partition)'),
         OpaqueFunction(function=launch_setup),
     ])

@@ -29,6 +29,7 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('use_rviz')
     target_spawn_delay = LaunchConfiguration('target_spawn_delay')
     px4_dir = LaunchConfiguration('px4_dir')
+    gz_partition = LaunchConfiguration('gz_partition')
 
     pkg = FindPackageShare('drone_interception_sim')
 
@@ -41,6 +42,7 @@ def generate_launch_description():
             'gz_world': world,
             'use_rviz': use_rviz,
             'px4_dir': px4_dir,
+            'gz_partition': gz_partition,
         }.items())
 
     target = IncludeLaunchDescription(
@@ -51,6 +53,7 @@ def generate_launch_description():
             'headless': headless,
             'gz_world': world,
             'px4_dir': px4_dir,
+            'gz_partition': gz_partition,
         }.items())
 
     # Delay the target so the interceptor's PX4 brings up the single gz server first.
@@ -67,6 +70,9 @@ def generate_launch_description():
         DeclareLaunchArgument('px4_dir',
                               default_value='/home/asmbatati/drone_interception_ws/PX4-Autopilot',
                               description='PX4-Autopilot dir (in-tree by default)'),
+        DeclareLaunchArgument('gz_partition', default_value='d2d_intercept',
+                              description='Gazebo transport partition isolating this sim '
+                                          '(empty = default partition)'),
         interceptor,
         delayed_target,
     ])

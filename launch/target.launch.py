@@ -21,6 +21,10 @@ from launch_ros.substitutions import FindPackageShare
 # Project's in-tree PX4 (the one beside ros2_ws). Override with px4_dir:=/path.
 DEFAULT_PX4_DIR = '/home/asmbatati/drone_interception_ws/PX4-Autopilot'
 
+# Must match the interceptor's gz_partition so the target attaches to the SAME
+# (already-running) Gazebo server.
+DEFAULT_GZ_PARTITION = 'd2d_intercept'
+
 # Target identity (see plan: spawn scheme table)
 NS = 'target'
 MODEL = 'x3_uav'
@@ -39,10 +43,15 @@ def launch_setup(context, *args, **kwargs):
     ypos = LaunchConfiguration('ypos').perform(context)
     zpos = LaunchConfiguration('zpos').perform(context)
     px4_dir = LaunchConfiguration('px4_dir').perform(context)
+    gz_partition = LaunchConfiguration('gz_partition').perform(context)
 
     # Use the project's in-tree PX4 (overridable via px4_dir:=).
     if px4_dir:
         os.environ['PX4_DIR'] = px4_dir
+
+    # Same partition as the interceptor so we attach to its running gz server.
+    if gz_partition:
+        os.environ['GZ_PARTITION'] = gz_partition
 
     pkg_share = get_package_share_directory('drone_interception_sim')
 
@@ -123,5 +132,7 @@ def generate_launch_description():
         DeclareLaunchArgument('zpos', default_value='0.1'),
         DeclareLaunchArgument('px4_dir', default_value=DEFAULT_PX4_DIR,
                               description='PX4-Autopilot dir (in-tree by default)'),
+        DeclareLaunchArgument('gz_partition', default_value=DEFAULT_GZ_PARTITION,
+                              description='Gazebo transport partition (must match interceptor)'),
         OpaqueFunction(function=launch_setup),
     ])
