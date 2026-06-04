@@ -58,6 +58,10 @@ def launch_setup(context, *args, **kwargs):
     ros_domain_id = LaunchConfiguration('ros_domain_id').perform(context)
     if ros_domain_id:
         os.environ['ROS_DOMAIN_ID'] = ros_domain_id
+    # Match the interceptor's headless setting (the target attaches to the
+    # existing gz server, but keep the env consistent).
+    if LaunchConfiguration('headless').perform(context) == '1':
+        os.environ['HEADLESS'] = '1'
 
     pkg_share = get_package_share_directory('drone_interception_sim')
 

@@ -12,8 +12,7 @@ import os
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, ExecuteProcess,
-                            IncludeLaunchDescription, OpaqueFunction,
-                            SetEnvironmentVariable)
+                            IncludeLaunchDescription, OpaqueFunction)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -96,9 +95,14 @@ def launch_setup(context, *args, **kwargs):
                  'exec ros2 run rmw_zenoh_cpp rmw_zenohd'],
             name='zenoh_router', output='log'))
 
-    # Make headless real: PX4's gz backend honours HEADLESS=1 (runs `gz sim -s`).
+    # Make headless real: PX4's px4-rc.simulator starts the gz GUI unless the
+    # HEADLESS env var is non-empty. It must be in the px4 PROCESS environment,
+    # so set os.environ (a SetEnvironmentVariable action does NOT propagate into
+    # the included gz_sim.launch.py's ExecuteProcess).
     if headless == '1':
-        actions.append(SetEnvironmentVariable('HEADLESS', '1'))
+        os.environ['HEADLESS'] = '1'
+    else:
+        os.environ.pop('HEADLESS', None)
 
     # PX4 SITL + Gazebo (this instance spawns the shared server)
     gz_launch = IncludeLaunchDescription(
