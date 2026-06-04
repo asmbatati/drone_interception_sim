@@ -119,6 +119,16 @@ def launch_setup(context, *args, **kwargs):
             {'publish_rate': 50.0},
         ], output='log'))
 
+    # Body markers for RViz (no URDF; attached to base_link via TF)
+    actions.append(Node(
+        package='drone_interception_sim', executable='drone_markers',
+        name='drone_markers', namespace=NS,
+        parameters=[{'use_sim_time': True},
+                    {'frame_id': NS + '/base_link'},
+                    {'marker_ns': NS},
+                    {'color': [1.0, 0.2, 0.1]}],   # target = red
+        output='log'))
+
     # Scripted autonomous target flight (evasion optional; see config)
     actions.append(Node(
         package='drone_interception_sim', executable='target_trajectory',

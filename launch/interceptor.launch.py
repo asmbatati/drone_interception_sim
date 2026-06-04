@@ -180,6 +180,16 @@ def launch_setup(context, *args, **kwargs):
         ],
         parameters=[{'use_sim_time': True}], output='log'))
 
+    # Body markers for RViz (no URDF; attached to base_link via TF)
+    actions.append(Node(
+        package='drone_interception_sim', executable='drone_markers',
+        name='drone_markers', namespace=NS,
+        parameters=[{'use_sim_time': True},
+                    {'frame_id': NS + '/base_link'},
+                    {'marker_ns': NS},
+                    {'color': [0.1, 0.4, 1.0]}],   # interceptor = blue
+        output='log'))
+
     # RViz (optional)
     rviz_file = os.path.join(pkg_share, 'rviz', 'interception.rviz')
     actions.append(Node(

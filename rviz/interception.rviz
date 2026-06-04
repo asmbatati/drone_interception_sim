@@ -57,6 +57,22 @@ Visualization Manager:
         Shaft Radius: 0.06
         Head Length: 0.2
         Head Radius: 0.12
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Interceptor Body
+      Enabled: true
+      Topic:
+        Value: /interceptor/markers
+        Depth: 5
+        Reliability Policy: Reliable
+        Durability Policy: Volatile
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Target Body
+      Enabled: true
+      Topic:
+        Value: /target/markers
+        Depth: 5
+        Reliability Policy: Reliable
+        Durability Policy: Volatile
     - Class: rviz_default_plugins/Path
       Name: Target Path
       Enabled: true

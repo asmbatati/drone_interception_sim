@@ -36,6 +36,7 @@ setup(
         'console_scripts': [
             'target_trajectory = drone_interception_sim.target_trajectory_node:main',
             'interception_metrics = drone_interception_sim.interception_metrics:main',
+            'drone_markers = drone_interception_sim.drone_markers:main',
         ],
     },
 )

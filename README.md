@@ -90,6 +90,15 @@ or per-run; it then subscribes to the interceptor odom (remapped in
 `target.launch.py`) and adds a repulsion offset when the interceptor closes in.
 Useful as a harder RL/strategy benchmark than the fixed circle/figure-8.
 
+## Visualizing the drones in RViz (no URDF)
+
+The drones are spawned from PX4 SDF, so there is no ROS `robot_description` for
+RViz. Instead, a `drone_markers` node publishes a quadcopter **MarkerArray**
+attached to each `<ns>/base_link` frame (interceptor = blue, target = red); the
+markers track the drone through TF. The RViz config shows `/interceptor/markers`
+and `/target/markers`. To render the real mesh instead of the geometric quad,
+pass `mesh_resource:=file:///abs/path/to/model.dae` to the node.
+
 ## Notes
 
 - **Single Gazebo server**: both drones share the identical `world` arg; the
