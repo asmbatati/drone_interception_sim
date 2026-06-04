@@ -8,6 +8,8 @@ one so it attaches to the already-running Gazebo server instead of spawning a
 second one (the bug that made the old run_sim.launch.py unusable).
 """
 import os
+import signal
+import time
 
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
@@ -32,6 +34,37 @@ DEFAULT_GZ_PARTITION = 'd2d_intercept'
 # Isolate the ROS graph (esp. /clock) from other simulators. Every terminal that
 # talks to this sim must export the same ROS_DOMAIN_ID. Empty = inherit.
 DEFAULT_ROS_DOMAIN_ID = '77'
+
+
+def _kill_stale_sim(partition):
+    """Kill leftover px4/gz from a PREVIOUS run of THIS sim.
+
+    PX4 SITL holds a per-instance lock; a crashed/ctrl-c'd run can leave the
+    px4 daemon alive, so the next launch dies with 'PX4 server already running
+    for instance N'. We match only processes whose environment has this sim's
+    GZ_PARTITION, so other projects' PX4/gz are never touched.
+    """
+    if not partition:
+        return
+    killed = False
+    for pid in os.listdir('/proc'):
+        if not pid.isdigit():
+            continue
+        try:
+            with open(f'/proc/{pid}/cmdline', 'rb') as f:
+                cmd = f.read().replace(b'\x00', b' ').decode('utf-8', 'ignore')
+            if 'bin/px4' not in cmd and 'gz sim' not in cmd:
+                continue
+            with open(f'/proc/{pid}/environ', 'rb') as f:
+                env = f.read().decode('utf-8', 'ignore')
+            if f'GZ_PARTITION={partition}' in env:
+                os.kill(int(pid), signal.SIGKILL)
+                killed = True
+        except (FileNotFoundError, ProcessLookupError, PermissionError, ValueError):
+            continue
+    if killed:
+        time.sleep(2.0)   # let instance locks / UDP ports free up
+
 
 # Interceptor identity (see plan: spawn scheme table)
 NS = 'interceptor'
@@ -65,6 +98,10 @@ def launch_setup(context, *args, **kwargs):
     # reads PX4_DIR from the environment, so set it here before the include.
     if px4_dir:
         os.environ['PX4_DIR'] = px4_dir
+
+    # Clear leftover px4/gz from a previous run of THIS sim (same partition) so
+    # relaunching never collides on the PX4 instance lock. Safe for other sims.
+    _kill_stale_sim(gz_partition)
 
     # Isolate Gazebo transport so PX4 starts its OWN gz server for this world
     # instead of attaching to another sim's server on the default partition.

@@ -81,6 +81,20 @@ ros2 launch drone_interception_sim perception.launch.py device:=cpu \
 # then point the controller's target input at /interceptor/target_detection
 ```
 
+## Stopping / relaunching
+
+PX4 SITL holds a per-instance lock, and a crashed or Ctrl-C'd run can leave the
+`px4` daemon alive — the next launch then dies with `PX4 server already running
+for instance N` (the target/interceptor PX4 exits 255). Two safeguards:
+
+- `interceptor.launch.py` **auto-clears** leftover px4/gz from a previous run of
+  *this* sim (matched by `GZ_PARTITION`, so other projects are untouched) before
+  starting — so just relaunching usually works.
+- To stop a run cleanly (or clean up manually): `scripts/stop_sim.sh`.
+
+If you run several PX4+gz sims at once, give each its own `gz_partition:=` /
+`ros_domain_id:=` (and don't reuse PX4 instance numbers across them).
+
 ## Tips
 - Two-drone cold start: if the target's MAVROS is slow to connect, raise
   `target_spawn_delay:=12`.
