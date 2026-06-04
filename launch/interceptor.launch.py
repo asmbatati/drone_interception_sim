@@ -74,8 +74,12 @@ def launch_setup(context, *args, **kwargs):
 
     # Force CPU (Mesa llvmpipe) rendering for RViz/gz when the GPU GL stack is
     # broken (e.g. NVIDIA driver/kernel-module version mismatch before a reboot).
+    # LIBGL_ALWAYS_SOFTWARE alone is NOT enough when the X server's GLX vendor is
+    # the broken NVIDIA one, so also route GLX through Mesa via libglvnd.
     if LaunchConfiguration('software_gl').perform(context) == 'true':
         os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+        os.environ['__GLX_VENDOR_LIBRARY_NAME'] = 'mesa'
+        os.environ['GALLIUM_DRIVER'] = 'llvmpipe'
 
     pkg_share = get_package_share_directory('drone_interception_sim')
 
