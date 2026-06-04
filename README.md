@@ -96,15 +96,19 @@ The drones are spawned from PX4 SDF, so there is no ROS `robot_description` for
 RViz. Instead, a `drone_markers` node publishes a quadcopter **MarkerArray**
 attached to each `<ns>/base_link` frame (interceptor = blue, target = red); the
 markers track the drone through TF. The RViz config shows `/interceptor/markers`
-and `/target/markers`. To render the real mesh instead of the geometric quad,
-pass `mesh_resource:=file:///abs/path/to/model.dae` to the node.
+and `/target/markers`.
 
-The propeller blades **spin from real flight data**: the node subscribes to
-`mavros/state` (armed) and `mavros/vfr_hud` (throttle) and advances the rotor
-angle at a rate proportional to the actual PX4 throttle (zero when disarmed),
-tunable via `max_spin_rate`/`idle_spin_rate`. This is a uniform throttle-driven
-spin; for true per-motor RPM, drive it from px4_msgs `ActuatorMotors`
-(uXRCE-DDS) instead.
+**Default = the real model mesh**: the interceptor renders the x500 mesh
+(`x500_base/meshes/NXP-HGD-CF.dae`) and the target the x3 mesh
+(`x3_uav/meshes/x3.dae`), resolved from `PX4_DIR`. Override per launch:
+- `marker_mesh:=none`  -> animated geometric quad (see below)
+- `marker_mesh:=file:///abs/path.dae` -> a custom mesh
+
+With `marker_mesh:=none`, the geometric quad's propeller blades **spin from real
+flight data** (subscribes to `mavros/state` armed + `mavros/vfr_hud` throttle;
+rate ∝ throttle, zero when disarmed; tunable via `max_spin_rate`/`idle_spin_rate`).
+The mesh mode shows the model's own (static) propellers. (For animated props on
+the *mesh*, you'd drive per-rotor link meshes from px4_msgs `ActuatorMotors`.)
 
 ## Notes
 

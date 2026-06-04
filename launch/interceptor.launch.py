@@ -205,14 +205,27 @@ def launch_setup(context, *args, **kwargs):
         arguments=bridge_args,
         parameters=[{'use_sim_time': True}], output='log'))
 
-    # Body markers for RViz (no URDF; attached to base_link via TF)
+    # Body markers for RViz (no URDF; attached to base_link via TF). Default to
+    # the real x500 mesh; marker_mesh:=none falls back to the animated quad;
+    # marker_mesh:=file://... overrides with a custom mesh.
+    marker_mesh = LaunchConfiguration('marker_mesh').perform(context)
+    if marker_mesh == 'none':
+        mesh = ''
+    elif marker_mesh:
+        mesh = marker_mesh
+    elif px4_dir:
+        mesh = ('file://' + px4_dir +
+                '/Tools/simulation/gz/models/x500_base/meshes/NXP-HGD-CF.dae')
+    else:
+        mesh = ''
     actions.append(Node(
         package='drone_interception_sim', executable='drone_markers',
         name='drone_markers', namespace=NS,
         parameters=[{'use_sim_time': True},
                     {'frame_id': NS + '/base_link'},
                     {'marker_ns': NS},
-                    {'color': [0.1, 0.4, 1.0]}],   # interceptor = blue
+                    {'color': [0.1, 0.4, 1.0]},   # interceptor = blue (geom fallback)
+                    {'mesh_resource': mesh}],
         output='log'))
 
     # RViz (optional)
@@ -251,5 +264,8 @@ def generate_launch_description():
         DeclareLaunchArgument('gpu', default_value='true',
                               description='false = camera-less x500 interceptor so gz needs no '
                                           'GL (run with no GPU; faster for RL)'),
+        DeclareLaunchArgument('marker_mesh', default_value='',
+                              description="RViz body mesh: '' = real x500 mesh (default), "
+                                          "'none' = animated geometric quad, or a file:// URI"),
         OpaqueFunction(function=launch_setup),
     ])

@@ -123,14 +123,26 @@ def launch_setup(context, *args, **kwargs):
             {'publish_rate': 50.0},
         ], output='log'))
 
-    # Body markers for RViz (no URDF; attached to base_link via TF)
+    # Body markers for RViz (no URDF; attached to base_link via TF). Default to
+    # the real x3_uav mesh; marker_mesh:=none -> animated quad; file://... -> custom.
+    marker_mesh = LaunchConfiguration('marker_mesh').perform(context)
+    if marker_mesh == 'none':
+        mesh = ''
+    elif marker_mesh:
+        mesh = marker_mesh
+    elif px4_dir:
+        mesh = ('file://' + px4_dir +
+                '/Tools/simulation/gz/models/x3_uav/meshes/x3.dae')
+    else:
+        mesh = ''
     actions.append(Node(
         package='drone_interception_sim', executable='drone_markers',
         name='drone_markers', namespace=NS,
         parameters=[{'use_sim_time': True},
                     {'frame_id': NS + '/base_link'},
                     {'marker_ns': NS},
-                    {'color': [1.0, 0.2, 0.1]}],   # target = red
+                    {'color': [1.0, 0.2, 0.1]},   # target = red (geom fallback)
+                    {'mesh_resource': mesh}],
         output='log'))
 
     # Scripted autonomous target flight (evasion optional; see config)
@@ -160,5 +172,8 @@ def generate_launch_description():
                               description='Gazebo transport partition (must match interceptor)'),
         DeclareLaunchArgument('ros_domain_id', default_value=DEFAULT_ROS_DOMAIN_ID,
                               description='ROS_DOMAIN_ID (must match interceptor)'),
+        DeclareLaunchArgument('marker_mesh', default_value='',
+                              description="RViz body mesh: '' = real x3 mesh (default), "
+                                          "'none' = geometric quad, or a file:// URI"),
         OpaqueFunction(function=launch_setup),
     ])

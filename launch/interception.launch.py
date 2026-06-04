@@ -51,6 +51,7 @@ def generate_launch_description():
             'ros_domain_id': ros_domain_id,
             'software_gl': LaunchConfiguration('software_gl'),
             'gpu': LaunchConfiguration('gpu'),
+            'marker_mesh': LaunchConfiguration('marker_mesh'),
             'xpos': '0.0', 'ypos': '0.0', 'zpos': '0.1',
         }.items())
 
@@ -64,6 +65,7 @@ def generate_launch_description():
             'px4_dir': px4_dir,
             'gz_partition': gz_partition,
             'ros_domain_id': ros_domain_id,
+            'marker_mesh': LaunchConfiguration('marker_mesh'),
             'xpos': target_x, 'ypos': '0.0', 'zpos': '0.1',
         }.items())
 
@@ -93,6 +95,9 @@ def generate_launch_description():
                               description='true = CPU rendering for RViz/gz (broken GPU GL)'),
         DeclareLaunchArgument('gpu', default_value='true',
                               description='false = camera-less interceptor; gz needs no GL'),
+        DeclareLaunchArgument('marker_mesh', default_value='',
+                              description="RViz body mesh: '' = real per-drone meshes (default), "
+                                          "'none' = animated geometric quads"),
         interceptor,
         delayed_target,
     ])
