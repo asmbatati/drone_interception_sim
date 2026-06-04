@@ -104,13 +104,16 @@ and `/target/markers`.
 - `marker_mesh:=none`  -> animated geometric quad (see below)
 - `marker_mesh:=file:///abs/path.dae` -> a custom mesh
 
-The body meshes are body-only (the model's propellers are separate link meshes),
-so in **both** mesh and geometric modes the node overlays 4 **spinning propeller
-blades** driven by real flight data: it subscribes to `mavros/state` (armed) +
-`mavros/vfr_hud` (throttle) and spins the blades at a rate ∝ throttle (zero when
-disarmed). Tune with `show_props` (default true), `arm_length`, `prop_z` (blade
-height above base_link), `prop_len`, `max_spin_rate`, `idle_spin_rate` — e.g. for
-the smaller x3 target you may want a smaller `arm_length`/`prop_z`.
+The body meshes are body-only, so the node overlays the **real propeller meshes**
+spinning at their true rotor poses (read from each model's SDF): the interceptor
+uses `x500_base/meshes/1345_prop_{ccw,cw}.stl` at `±0.174, z=0.06`, the target
+`x3_uav/meshes/propeller_{ccw,cw}.dae` — each spinning about its hub, CW/CCW
+alternating like an X-quad. The spin is driven by **real flight data**
+(`mavros/state` armed + `mavros/vfr_hud` throttle; rate ∝ throttle, zero when
+disarmed). The launches pass the per-rotor `rotor_meshes` / `rotor_x` / `rotor_y`
+/ `rotor_z` / `rotor_dirs` arrays; `show_props:=false` hides them. In geometric
+mode (`marker_mesh:=none`) the rotors fall back to spinning blade bars
+(`arm_length`, `prop_z`, `prop_len`). Spin speed: `max_spin_rate`/`idle_spin_rate`.
 
 ## Notes
 

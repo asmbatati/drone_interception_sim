@@ -135,18 +135,25 @@ def launch_setup(context, *args, **kwargs):
                 '/Tools/simulation/gz/models/x3_uav/meshes/x3.dae')
     else:
         mesh = ''
+    mk_params = [{'use_sim_time': True},
+                 {'frame_id': NS + '/base_link'},
+                 {'marker_ns': NS},
+                 {'color': [1.0, 0.2, 0.1]},   # target = red (geom fallback)
+                 {'mesh_resource': mesh},
+                 {'arm_length': 0.16}]          # x3 small quad (geom fallback)
+    # Real x3 propeller meshes at their true rotor poses (only in mesh mode).
+    if mesh and px4_dir:
+        pd = 'file://' + px4_dir + '/Tools/simulation/gz/models/x3_uav/meshes/'
+        mk_params += [
+            {'rotor_meshes': [pd + 'propeller_ccw.dae', pd + 'propeller_ccw.dae',
+                              pd + 'propeller_cw.dae', pd + 'propeller_cw.dae']},
+            {'rotor_x': [0.13, -0.13, 0.13, -0.13]},
+            {'rotor_y': [-0.22, 0.2, 0.22, -0.2]},
+            {'rotor_z': [0.023, 0.023, 0.023, 0.023]},
+            {'rotor_dirs': [1.0, 1.0, -1.0, -1.0]}]
     actions.append(Node(
         package='drone_interception_sim', executable='drone_markers',
-        name='drone_markers', namespace=NS,
-        parameters=[{'use_sim_time': True},
-                    {'frame_id': NS + '/base_link'},
-                    {'marker_ns': NS},
-                    {'color': [1.0, 0.2, 0.1]},   # target = red (geom fallback)
-                    {'mesh_resource': mesh},
-                    {'arm_length': 0.16},          # x3 is a small quad
-                    {'prop_z': 0.04},
-                    {'prop_len': 0.16}],
-        output='log'))
+        name='drone_markers', namespace=NS, parameters=mk_params, output='log'))
 
     # Scripted autonomous target flight (evasion optional; see config)
     actions.append(Node(

@@ -14,6 +14,7 @@ import math
 
 from geometry_msgs.msg import Point
 from mavros_msgs.msg import State, VfrHud
+from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
@@ -40,6 +41,17 @@ class DroneMarkers(Node):
         self.declare_parameter('show_props', True)
         self.declare_parameter('prop_z', 0.10)             # blade height above base_link
         self.declare_parameter('prop_len', 0.22)           # blade span
+        # Real per-rotor propeller meshes (parallel arrays). When rotor_meshes is
+        # set, each rotor is rendered as a spinning MESH_RESOURCE at (x,y,z) with
+        # spin direction rotor_dirs[i]; otherwise geometric blades are used.
+        # dynamic_typing: an empty-list default would otherwise be inferred as
+        # BYTE_ARRAY and reject the STRING/DOUBLE arrays the launch passes.
+        dyn = ParameterDescriptor(dynamic_typing=True)
+        self.declare_parameter('rotor_meshes', [], dyn)
+        self.declare_parameter('rotor_x', [], dyn)
+        self.declare_parameter('rotor_y', [], dyn)
+        self.declare_parameter('rotor_z', [], dyn)
+        self.declare_parameter('rotor_dirs', [], dyn)
 
         self.frame_id = self.get_parameter('frame_id').value
         self.ns = self.get_parameter('marker_ns').value
@@ -52,6 +64,11 @@ class DroneMarkers(Node):
         self.show_props = self.get_parameter('show_props').value
         self.prop_z = self.get_parameter('prop_z').value
         self.prop_len = self.get_parameter('prop_len').value
+        self.rotor_meshes = list(self.get_parameter('rotor_meshes').value)
+        self.rotor_x = list(self.get_parameter('rotor_x').value)
+        self.rotor_y = list(self.get_parameter('rotor_y').value)
+        self.rotor_z = list(self.get_parameter('rotor_z').value)
+        self.rotor_dirs = list(self.get_parameter('rotor_dirs').value)
 
         # Real flight state for the propeller spin.
         self.armed = False
@@ -90,16 +107,35 @@ class DroneMarkers(Node):
         return m
 
     def _prop_markers(self, z):
-        """The 4 spinning propeller blades (thin bars) at the rotor positions.
+        """The 4 spinning propellers at the rotor positions.
 
-        Orientation about Z carries the real-throttle-driven angle; alternate
-        CW/CCW like an X-quad. Used both on the geometric quad and overlaid on
-        the body mesh (which has no propellers of its own).
+        If real per-rotor meshes are configured (rotor_meshes/x/y/z/dirs), each
+        rotor is a spinning MESH_RESOURCE at its true pose; otherwise a geometric
+        blade bar is used. The spin angle is the real-throttle-driven value.
         """
+        markers = []
+        if self.rotor_meshes:
+            for i, uri in enumerate(self.rotor_meshes):
+                r = self._base(2 + i, Marker.MESH_RESOURCE)
+                r.mesh_resource = uri
+                r.mesh_use_embedded_materials = True   # .dae materials; STL uses color
+                r.pose.position.x = float(self.rotor_x[i])
+                r.pose.position.y = float(self.rotor_y[i])
+                r.pose.position.z = float(self.rotor_z[i])
+                d = self.rotor_dirs[i] if i < len(self.rotor_dirs) else 1.0
+                yaw = d * self.spin_angle
+                r.pose.orientation.z = math.sin(yaw / 2.0)
+                r.pose.orientation.w = math.cos(yaw / 2.0)
+                r.scale.x = r.scale.y = r.scale.z = 1.0
+                r.color.r = r.color.g = r.color.b = 0.1   # dark props for STL meshes
+                r.color.a = 1.0
+                markers.append(r)
+            return markers
+
+        # Geometric blade fallback (no real mesh configured).
         d = self.arm / math.sqrt(2.0)
         rotors = [(d, d), (-d, -d), (d, -d), (-d, d)]
         spin_dir = [1.0, 1.0, -1.0, -1.0]
-        markers = []
         for i, (x, y) in enumerate(rotors):
             r = self._base(2 + i, Marker.CUBE)
             r.pose.position.x, r.pose.position.y, r.pose.position.z = x, y, z

@@ -255,18 +255,25 @@ def launch_setup(context, *args, **kwargs):
                 '/Tools/simulation/gz/models/x500_base/meshes/NXP-HGD-CF.dae')
     else:
         mesh = ''
+    mk_params = [{'use_sim_time': True},
+                 {'frame_id': NS + '/base_link'},
+                 {'marker_ns': NS},
+                 {'color': [0.1, 0.4, 1.0]},   # interceptor = blue (geom fallback)
+                 {'mesh_resource': mesh},
+                 {'arm_length': 0.25}]          # x500 rotor radius (geom fallback)
+    # Real x500 propeller meshes at their true rotor poses (only in mesh mode).
+    if mesh and px4_dir:
+        pd = 'file://' + px4_dir + '/Tools/simulation/gz/models/x500_base/meshes/'
+        mk_params += [
+            {'rotor_meshes': [pd + '1345_prop_ccw.stl', pd + '1345_prop_ccw.stl',
+                              pd + '1345_prop_cw.stl', pd + '1345_prop_cw.stl']},
+            {'rotor_x': [0.174, -0.174, 0.174, -0.174]},
+            {'rotor_y': [-0.174, 0.174, 0.174, -0.174]},
+            {'rotor_z': [0.06, 0.06, 0.06, 0.06]},
+            {'rotor_dirs': [1.0, 1.0, -1.0, -1.0]}]
     actions.append(Node(
         package='drone_interception_sim', executable='drone_markers',
-        name='drone_markers', namespace=NS,
-        parameters=[{'use_sim_time': True},
-                    {'frame_id': NS + '/base_link'},
-                    {'marker_ns': NS},
-                    {'color': [0.1, 0.4, 1.0]},   # interceptor = blue (geom fallback)
-                    {'mesh_resource': mesh},
-                    {'arm_length': 0.25},          # x500 rotor radius
-                    {'prop_z': 0.06},
-                    {'prop_len': 0.24}],
-        output='log'))
+        name='drone_markers', namespace=NS, parameters=mk_params, output='log'))
 
     # RViz (optional)
     rviz_file = os.path.join(pkg_share, 'rviz', 'interception.rviz')
