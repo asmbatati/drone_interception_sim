@@ -72,6 +72,11 @@ def launch_setup(context, *args, **kwargs):
     if ros_domain_id:
         os.environ['ROS_DOMAIN_ID'] = ros_domain_id
 
+    # Force CPU (Mesa llvmpipe) rendering for RViz/gz when the GPU GL stack is
+    # broken (e.g. NVIDIA driver/kernel-module version mismatch before a reboot).
+    if LaunchConfiguration('software_gl').perform(context) == 'true':
+        os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+
     pkg_share = get_package_share_directory('drone_interception_sim')
 
     actions = []
@@ -220,5 +225,8 @@ def generate_launch_description():
         DeclareLaunchArgument('ros_domain_id', default_value=DEFAULT_ROS_DOMAIN_ID,
                               description='ROS_DOMAIN_ID isolating this sim (esp. /clock); '
                                           'empty = inherit. Match it in all terminals.'),
+        DeclareLaunchArgument('software_gl', default_value='false',
+                              description='true = CPU (Mesa) rendering for RViz/gz when the '
+                                          'GPU GL stack is broken'),
         OpaqueFunction(function=launch_setup),
     ])

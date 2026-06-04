@@ -49,6 +49,7 @@ def generate_launch_description():
             'px4_dir': px4_dir,
             'gz_partition': gz_partition,
             'ros_domain_id': ros_domain_id,
+            'software_gl': LaunchConfiguration('software_gl'),
             'xpos': '0.0', 'ypos': '0.0', 'zpos': '0.1',
         }.items())
 
@@ -87,6 +88,8 @@ def generate_launch_description():
                                           'simulators (esp. /clock). Match in all terminals.'),
         DeclareLaunchArgument('target_x', default_value='10.0',
                               description='Target spawn X offset from the interceptor'),
+        DeclareLaunchArgument('software_gl', default_value='false',
+                              description='true = CPU rendering for RViz/gz (broken GPU GL)'),
         interceptor,
         delayed_target,
     ])
