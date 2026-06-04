@@ -52,6 +52,15 @@ def launch_setup(context, *args, **kwargs):
     px4_dir = LaunchConfiguration('px4_dir').perform(context)
     gz_partition = LaunchConfiguration('gz_partition').perform(context)
 
+    # gpu:=false -> use the camera-less x500 so the gz server never invokes GL
+    # rendering (runs with no GPU / a broken GL stack, and faster for RL). The
+    # depth-camera bridge is then skipped. Default keeps the x500_d435 + camera.
+    gpu = LaunchConfiguration('gpu').perform(context)
+    if gpu == 'false':
+        model, autostart = 'x500', '4001'
+    else:
+        model, autostart = MODEL, AUTOSTART_ID
+
     # Use the project's in-tree PX4 (overridable via px4_dir:=). gz_sim.launch.py
     # reads PX4_DIR from the environment, so set it here before the include.
     if px4_dir:
@@ -113,9 +122,9 @@ def launch_setup(context, *args, **kwargs):
         launch_arguments={
             'gz_ns': NS,
             'headless': headless,
-            'gz_model_name': MODEL,
+            'gz_model_name': model,
             'gz_world': gz_world,
-            'px4_autostart_id': AUTOSTART_ID,
+            'px4_autostart_id': autostart,
             'instance_id': INSTANCE_ID,
             'xpos': xpos, 'ypos': ypos, 'zpos': zpos,
         }.items()
@@ -175,12 +184,11 @@ def launch_setup(context, *args, **kwargs):
             {'publish_rate': 50.0},
         ], output='log'))
 
-    # Depth-camera bridge (RealSense D435 publishes on global /d435/* gz topics)
-    actions.append(Node(
-        package='ros_gz_bridge', executable='parameter_bridge',
-        name='interceptor_depthcam_bridge',
-        arguments=[
-            '/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock',
+    # Sensor bridge. /clock is always needed; the D435 depth-camera topics are
+    # added only with gpu:=true (the camera needs gz GL rendering).
+    bridge_args = ['/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock']
+    if gpu != 'false':
+        bridge_args += [
             '/d435/depth_image@sensor_msgs/msg/Image[ignition.msgs.Image',
             '/d435/image@sensor_msgs/msg/Image[ignition.msgs.Image',
             '/d435/points@sensor_msgs/msg/PointCloud2[ignition.msgs.PointCloudPacked',
@@ -190,7 +198,11 @@ def launch_setup(context, *args, **kwargs):
             '-r', '/d435/image:=' + NS + '/image',
             '-r', '/d435/points:=' + NS + '/points',
             '-r', '/d435/camera_info:=' + NS + '/camera_info',
-        ],
+        ]
+    actions.append(Node(
+        package='ros_gz_bridge', executable='parameter_bridge',
+        name='interceptor_depthcam_bridge',
+        arguments=bridge_args,
         parameters=[{'use_sim_time': True}], output='log'))
 
     # Body markers for RViz (no URDF; attached to base_link via TF)
@@ -236,5 +248,8 @@ def generate_launch_description():
         DeclareLaunchArgument('software_gl', default_value='false',
                               description='true = CPU (Mesa) rendering for RViz/gz when the '
                                           'GPU GL stack is broken'),
+        DeclareLaunchArgument('gpu', default_value='true',
+                              description='false = camera-less x500 interceptor so gz needs no '
+                                          'GL (run with no GPU; faster for RL)'),
         OpaqueFunction(function=launch_setup),
     ])
