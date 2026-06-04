@@ -13,8 +13,11 @@ file:// or package:// URI) to render an actual mesh instead.
 import math
 
 from geometry_msgs.msg import Point
+from mavros_msgs.msg import State, VfrHud
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
+                       ReliabilityPolicy, qos_profile_sensor_data)
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -30,6 +33,9 @@ class DroneMarkers(Node):
         self.declare_parameter('rate', 10.0)
         self.declare_parameter('mesh_resource', '')        # file://... to use a mesh
         self.declare_parameter('mesh_scale', 1.0)
+        # Propeller animation driven by the real PX4 throttle (VFR_HUD).
+        self.declare_parameter('max_spin_rate', 80.0)      # rad/s at full throttle
+        self.declare_parameter('idle_spin_rate', 12.0)     # rad/s when armed, ~0 throttle
 
         self.frame_id = self.get_parameter('frame_id').value
         self.ns = self.get_parameter('marker_ns').value
@@ -37,10 +43,31 @@ class DroneMarkers(Node):
         self.arm = self.get_parameter('arm_length').value
         self.mesh = self.get_parameter('mesh_resource').value
         self.mesh_scale = self.get_parameter('mesh_scale').value
+        self.max_spin = self.get_parameter('max_spin_rate').value
+        self.idle_spin = self.get_parameter('idle_spin_rate').value
+
+        # Real flight state for the propeller spin.
+        self.armed = False
+        self.throttle = 0.0          # 0..1 from VFR_HUD
+        self.spin_angle = 0.0
+        self._last_t = None
+        state_qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
+                               durability=DurabilityPolicy.VOLATILE,
+                               history=HistoryPolicy.KEEP_LAST, depth=5)
+        self.create_subscription(State, 'mavros/state', self._state_cb, state_qos)
+        self.create_subscription(VfrHud, 'mavros/vfr_hud', self._vfr_cb,
+                                 qos_profile_sensor_data)
 
         self.pub = self.create_publisher(MarkerArray, 'markers', 1)
         period = 1.0 / max(self.get_parameter('rate').value, 1e-3)
         self.create_timer(period, self._publish)
+
+    def _state_cb(self, msg):
+        self.armed = msg.armed
+
+    def _vfr_cb(self, msg):
+        # VFR_HUD.throttle is 0..100 (percent) in MAVLink/mavros.
+        self.throttle = max(0.0, min(1.0, msg.throttle / 100.0))
 
     def _base(self, marker_id, mtype):
         m = Marker()
@@ -79,17 +106,32 @@ class DroneMarkers(Node):
             arms.points.append(Point(x=x, y=y, z=0.0))
         markers.append(arms)
 
-        # rotor disks
+        # propeller blades (thin bars) that visibly spin; alternate CW/CCW like
+        # an X-quad. Orientation about Z carries the real-throttle-driven angle.
+        spin_dir = [1.0, 1.0, -1.0, -1.0]
         for i, (x, y) in enumerate(rotors):
-            r = self._base(2 + i, Marker.CYLINDER)
+            r = self._base(2 + i, Marker.CUBE)
             r.pose.position.x, r.pose.position.y, r.pose.position.z = x, y, 0.02
-            r.scale.x = r.scale.y = 0.20
-            r.scale.z = 0.02
-            r.color.a = 0.85
+            yaw = spin_dir[i] * self.spin_angle
+            r.pose.orientation.z = math.sin(yaw / 2.0)
+            r.pose.orientation.w = math.cos(yaw / 2.0)
+            r.scale.x, r.scale.y, r.scale.z = 0.22, 0.03, 0.01   # 2-blade prop bar
+            r.color.a = 0.9
             markers.append(r)
         return markers
 
+    def _spin_rate(self):
+        """Angular rate (rad/s) for the props, from real armed/throttle state."""
+        if not self.armed:
+            return 0.0
+        return self.idle_spin + (self.max_spin - self.idle_spin) * self.throttle
+
     def _publish(self):
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if self._last_t is not None:
+            self.spin_angle = (self.spin_angle + self._spin_rate() *
+                               (now - self._last_t)) % (2.0 * math.pi)
+        self._last_t = now
         markers = self._mesh_marker() if self.mesh else self._quad_markers()
         self.pub.publish(MarkerArray(markers=markers))
 

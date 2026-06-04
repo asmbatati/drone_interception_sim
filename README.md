@@ -99,6 +99,13 @@ markers track the drone through TF. The RViz config shows `/interceptor/markers`
 and `/target/markers`. To render the real mesh instead of the geometric quad,
 pass `mesh_resource:=file:///abs/path/to/model.dae` to the node.
 
+The propeller blades **spin from real flight data**: the node subscribes to
+`mavros/state` (armed) and `mavros/vfr_hud` (throttle) and advances the rotor
+angle at a rate proportional to the actual PX4 throttle (zero when disarmed),
+tunable via `max_spin_rate`/`idle_spin_rate`. This is a uniform throttle-driven
+spin; for true per-motor RPM, drive it from px4_msgs `ActuatorMotors`
+(uXRCE-DDS) instead.
+
 ## Notes
 
 - **Single Gazebo server**: both drones share the identical `world` arg; the
