@@ -104,11 +104,13 @@ and `/target/markers`.
 - `marker_mesh:=none`  -> animated geometric quad (see below)
 - `marker_mesh:=file:///abs/path.dae` -> a custom mesh
 
-With `marker_mesh:=none`, the geometric quad's propeller blades **spin from real
-flight data** (subscribes to `mavros/state` armed + `mavros/vfr_hud` throttle;
-rate ∝ throttle, zero when disarmed; tunable via `max_spin_rate`/`idle_spin_rate`).
-The mesh mode shows the model's own (static) propellers. (For animated props on
-the *mesh*, you'd drive per-rotor link meshes from px4_msgs `ActuatorMotors`.)
+The body meshes are body-only (the model's propellers are separate link meshes),
+so in **both** mesh and geometric modes the node overlays 4 **spinning propeller
+blades** driven by real flight data: it subscribes to `mavros/state` (armed) +
+`mavros/vfr_hud` (throttle) and spins the blades at a rate ∝ throttle (zero when
+disarmed). Tune with `show_props` (default true), `arm_length`, `prop_z` (blade
+height above base_link), `prop_len`, `max_spin_rate`, `idle_spin_rate` — e.g. for
+the smaller x3 target you may want a smaller `arm_length`/`prop_z`.
 
 ## Notes
 

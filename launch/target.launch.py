@@ -142,7 +142,10 @@ def launch_setup(context, *args, **kwargs):
                     {'frame_id': NS + '/base_link'},
                     {'marker_ns': NS},
                     {'color': [1.0, 0.2, 0.1]},   # target = red (geom fallback)
-                    {'mesh_resource': mesh}],
+                    {'mesh_resource': mesh},
+                    {'arm_length': 0.16},          # x3 is a small quad
+                    {'prop_z': 0.04},
+                    {'prop_len': 0.16}],
         output='log'))
 
     # Scripted autonomous target flight (evasion optional; see config)

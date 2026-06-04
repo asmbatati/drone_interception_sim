@@ -36,6 +36,10 @@ class DroneMarkers(Node):
         # Propeller animation driven by the real PX4 throttle (VFR_HUD).
         self.declare_parameter('max_spin_rate', 80.0)      # rad/s at full throttle
         self.declare_parameter('idle_spin_rate', 12.0)     # rad/s when armed, ~0 throttle
+        # Propeller overlay (the body mesh has no props of its own).
+        self.declare_parameter('show_props', True)
+        self.declare_parameter('prop_z', 0.10)             # blade height above base_link
+        self.declare_parameter('prop_len', 0.22)           # blade span
 
         self.frame_id = self.get_parameter('frame_id').value
         self.ns = self.get_parameter('marker_ns').value
@@ -45,6 +49,9 @@ class DroneMarkers(Node):
         self.mesh_scale = self.get_parameter('mesh_scale').value
         self.max_spin = self.get_parameter('max_spin_rate').value
         self.idle_spin = self.get_parameter('idle_spin_rate').value
+        self.show_props = self.get_parameter('show_props').value
+        self.prop_z = self.get_parameter('prop_z').value
+        self.prop_len = self.get_parameter('prop_len').value
 
         # Real flight state for the propeller spin.
         self.armed = False
@@ -82,12 +89,38 @@ class DroneMarkers(Node):
         m.pose.orientation.w = 1.0
         return m
 
+    def _prop_markers(self, z):
+        """The 4 spinning propeller blades (thin bars) at the rotor positions.
+
+        Orientation about Z carries the real-throttle-driven angle; alternate
+        CW/CCW like an X-quad. Used both on the geometric quad and overlaid on
+        the body mesh (which has no propellers of its own).
+        """
+        d = self.arm / math.sqrt(2.0)
+        rotors = [(d, d), (-d, -d), (d, -d), (-d, d)]
+        spin_dir = [1.0, 1.0, -1.0, -1.0]
+        markers = []
+        for i, (x, y) in enumerate(rotors):
+            r = self._base(2 + i, Marker.CUBE)
+            r.pose.position.x, r.pose.position.y, r.pose.position.z = x, y, z
+            yaw = spin_dir[i] * self.spin_angle
+            r.pose.orientation.z = math.sin(yaw / 2.0)
+            r.pose.orientation.w = math.cos(yaw / 2.0)
+            r.scale.x, r.scale.y, r.scale.z = self.prop_len, 0.03, 0.01
+            r.color.a = 0.95
+            markers.append(r)
+        return markers
+
     def _mesh_marker(self):
         m = self._base(0, Marker.MESH_RESOURCE)
         m.mesh_resource = self.mesh
         m.mesh_use_embedded_materials = True
         m.scale.x = m.scale.y = m.scale.z = float(self.mesh_scale)
-        return [m]
+        markers = [m]
+        # The body mesh has no propellers, so overlay spinning prop blades.
+        if self.show_props:
+            markers += self._prop_markers(self.prop_z)
+        return markers
 
     def _quad_markers(self):
         markers = []
@@ -100,24 +133,12 @@ class DroneMarkers(Node):
         arms = self._base(1, Marker.LINE_LIST)
         arms.scale.x = 0.03
         d = self.arm / math.sqrt(2.0)
-        rotors = [(d, d), (-d, -d), (d, -d), (-d, d)]
-        for (x, y) in rotors:
+        for (x, y) in [(d, d), (-d, -d), (d, -d), (-d, d)]:
             arms.points.append(Point(x=0.0, y=0.0, z=0.0))
             arms.points.append(Point(x=x, y=y, z=0.0))
         markers.append(arms)
 
-        # propeller blades (thin bars) that visibly spin; alternate CW/CCW like
-        # an X-quad. Orientation about Z carries the real-throttle-driven angle.
-        spin_dir = [1.0, 1.0, -1.0, -1.0]
-        for i, (x, y) in enumerate(rotors):
-            r = self._base(2 + i, Marker.CUBE)
-            r.pose.position.x, r.pose.position.y, r.pose.position.z = x, y, 0.02
-            yaw = spin_dir[i] * self.spin_angle
-            r.pose.orientation.z = math.sin(yaw / 2.0)
-            r.pose.orientation.w = math.cos(yaw / 2.0)
-            r.scale.x, r.scale.y, r.scale.z = 0.22, 0.03, 0.01   # 2-blade prop bar
-            r.color.a = 0.9
-            markers.append(r)
+        markers += self._prop_markers(0.02)
         return markers
 
     def _spin_rate(self):

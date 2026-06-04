@@ -262,7 +262,10 @@ def launch_setup(context, *args, **kwargs):
                     {'frame_id': NS + '/base_link'},
                     {'marker_ns': NS},
                     {'color': [0.1, 0.4, 1.0]},   # interceptor = blue (geom fallback)
-                    {'mesh_resource': mesh}],
+                    {'mesh_resource': mesh},
+                    {'arm_length': 0.25},          # x500 rotor radius
+                    {'prop_z': 0.06},
+                    {'prop_len': 0.24}],
         output='log'))
 
     # RViz (optional)
