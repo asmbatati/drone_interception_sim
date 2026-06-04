@@ -261,16 +261,23 @@ def launch_setup(context, *args, **kwargs):
                  {'color': [0.1, 0.4, 1.0]},   # interceptor = blue (geom fallback)
                  {'mesh_resource': mesh},
                  {'arm_length': 0.25}]          # x500 rotor radius (geom fallback)
-    # Real x500 propeller meshes at their true rotor poses (only in mesh mode).
+    # Real x500 propeller meshes at their TRUE SDF poses (only in mesh mode).
+    # Values are straight from x500_base/model.sdf: base_link is the model origin,
+    # the NXP body mesh sits at visual pose (0,0,.025, yaw pi), and each prop
+    # visual is offset within its rotor link to centre the hub on the spin axis.
     if mesh and px4_dir:
         pd = 'file://' + px4_dir + '/Tools/simulation/gz/models/x500_base/meshes/'
+        vis = [-0.022, -0.14638461538461536, -0.016, 0.0, 0.0, 0.0]
         mk_params += [
             {'rotor_meshes': [pd + '1345_prop_ccw.stl', pd + '1345_prop_ccw.stl',
                               pd + '1345_prop_cw.stl', pd + '1345_prop_cw.stl']},
-            {'rotor_x': [0.174, -0.174, 0.174, -0.174]},
-            {'rotor_y': [-0.174, 0.174, 0.174, -0.174]},
-            {'rotor_z': [0.06, 0.06, 0.06, 0.06]},
-            {'rotor_dirs': [1.0, 1.0, -1.0, -1.0]}]
+            {'rotor_link_poses': [0.174, -0.174, 0.06, 0.0, 0.0, 0.0,
+                                  -0.174, 0.174, 0.06, 0.0, 0.0, 0.0,
+                                  0.174, 0.174, 0.06, 0.0, 0.0, 0.0,
+                                  -0.174, -0.174, 0.06, 0.0, 0.0, 0.0]},
+            {'rotor_visual_poses': vis + vis + vis + vis},
+            {'rotor_dirs': [1.0, 1.0, -1.0, -1.0]},
+            {'body_pose': [0.0, 0.0, 0.025, 0.0, 0.0, 3.141592653589793]}]
     actions.append(Node(
         package='drone_interception_sim', executable='drone_markers',
         name='drone_markers', namespace=NS, parameters=mk_params, output='log'))

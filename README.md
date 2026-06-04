@@ -105,14 +105,20 @@ and `/target/markers`.
 - `marker_mesh:=file:///abs/path.dae` -> a custom mesh
 
 The body meshes are body-only, so the node overlays the **real propeller meshes**
-spinning at their true rotor poses (read from each model's SDF): the interceptor
-uses `x500_base/meshes/1345_prop_{ccw,cw}.stl` at `±0.174, z=0.06`, the target
-`x3_uav/meshes/propeller_{ccw,cw}.dae` — each spinning about its hub, CW/CCW
-alternating like an X-quad. The spin is driven by **real flight data**
-(`mavros/state` armed + `mavros/vfr_hud` throttle; rate ∝ throttle, zero when
-disarmed). The launches pass the per-rotor `rotor_meshes` / `rotor_x` / `rotor_y`
-/ `rotor_z` / `rotor_dirs` arrays; `show_props:=false` hides them. In geometric
-mode (`marker_mesh:=none`) the rotors fall back to spinning blade bars
+spinning at their true poses (read from each model's SDF): the interceptor uses
+`x500_base/meshes/1345_prop_{ccw,cw}.stl`, the target
+`x3_uav/meshes/propeller_{ccw,cw}.dae`, CW/CCW alternating like an X-quad. Each
+marker reproduces Gazebo exactly via `T(base_link←link) · Rz(spin) · T(visual)`,
+so it spins **about its true hub** (the x500 prop visual is offset within its
+link to centre the hub on the spin axis — without this the prop orbits instead of
+spinning). The body mesh's own visual pose is applied too (x500 = `0,0,.025, yaw
+π`). Spin is driven by **real flight data** (`mavros/state` armed +
+`mavros/vfr_hud` throttle; rate ∝ throttle, zero when disarmed).
+
+The launches pass the SDF values verbatim: `rotor_meshes`, `rotor_link_poses`
+(6/rotor in the model frame), `rotor_visual_poses` (6/rotor within the link),
+`base_pose`, `body_pose`, `rotor_dirs`. `show_props:=false` hides them; in
+geometric mode (`marker_mesh:=none`) the rotors fall back to spinning blade bars
 (`arm_length`, `prop_z`, `prop_len`). Spin speed: `max_spin_rate`/`idle_spin_rate`.
 
 ## Notes

@@ -141,15 +141,18 @@ def launch_setup(context, *args, **kwargs):
                  {'color': [1.0, 0.2, 0.1]},   # target = red (geom fallback)
                  {'mesh_resource': mesh},
                  {'arm_length': 0.16}]          # x3 small quad (geom fallback)
-    # Real x3 propeller meshes at their true rotor poses (only in mesh mode).
+    # Real x3 propeller meshes at their TRUE SDF poses (only in mesh mode).
+    # x3_uav/model.sdf: base_link is the model origin and the body + prop visuals
+    # are all identity, so only the rotor LINK poses are needed.
     if mesh and px4_dir:
         pd = 'file://' + px4_dir + '/Tools/simulation/gz/models/x3_uav/meshes/'
         mk_params += [
             {'rotor_meshes': [pd + 'propeller_ccw.dae', pd + 'propeller_ccw.dae',
                               pd + 'propeller_cw.dae', pd + 'propeller_cw.dae']},
-            {'rotor_x': [0.13, -0.13, 0.13, -0.13]},
-            {'rotor_y': [-0.22, 0.2, 0.22, -0.2]},
-            {'rotor_z': [0.023, 0.023, 0.023, 0.023]},
+            {'rotor_link_poses': [0.13, -0.22, 0.023, 0.0, 0.0, 0.0,
+                                  -0.13, 0.2, 0.023, 0.0, 0.0, 0.0,
+                                  0.13, 0.22, 0.023, 0.0, 0.0, 0.0,
+                                  -0.13, -0.2, 0.023, 0.0, 0.0, 0.0]},
             {'rotor_dirs': [1.0, 1.0, -1.0, -1.0]}]
     actions.append(Node(
         package='drone_interception_sim', executable='drone_markers',
