@@ -98,28 +98,25 @@ attached to each `<ns>/base_link` frame (interceptor = blue, target = red); the
 markers track the drone through TF. The RViz config shows `/interceptor/markers`
 and `/target/markers`.
 
-**Default = the real model mesh**: the interceptor renders the x500 mesh
-(`x500_base/meshes/NXP-HGD-CF.dae`) and the target the x3 mesh
-(`x3_uav/meshes/x3.dae`), resolved from `PX4_DIR`. Override per launch:
+**Default = the full real model**: the node is given the model's `model_sdf`
+(`x500_base` for the interceptor, `x3_uav` for the target, resolved from
+`PX4_DIR`) and **parses it**, rendering *every* visual mesh — body, motor bases,
+motor bells, and propellers — at its true pose **and scale**, with `model://`
+URIs resolved against `model_dir`. Override per launch:
 - `marker_mesh:=none`  -> animated geometric quad (see below)
-- `marker_mesh:=file:///abs/path.dae` -> a custom mesh
+- `marker_mesh:=file:///abs/path.dae` -> a single custom mesh + geometric props
 
-The body meshes are body-only, so the node overlays the **real propeller meshes**
-spinning at their true poses (read from each model's SDF): the interceptor uses
-`x500_base/meshes/1345_prop_{ccw,cw}.stl`, the target
-`x3_uav/meshes/propeller_{ccw,cw}.dae`, CW/CCW alternating like an X-quad. Each
-marker reproduces Gazebo exactly via `T(base_link←link) · Rz(spin) · T(visual)`,
-so it spins **about its true hub** (the x500 prop visual is offset within its
-link to centre the hub on the spin axis — without this the prop orbits instead of
-spinning). The body mesh's own visual pose is applied too (x500 = `0,0,.025, yaw
-π`). Spin is driven by **real flight data** (`mavros/state` armed +
-`mavros/vfr_hud` throttle; rate ∝ throttle, zero when disarmed).
+Each visual marker reproduces Gazebo exactly via
+`T(base_link←link) · Rz(spin) · T(visual)`, so propellers (the `*rotor*` links)
+spin **about their true hub** — the x500 prop visual is offset within its link to
+centre the hub on the spin axis, and the SDF `<mesh><scale>` is applied (the x3
+props are authored 10× and scaled to `0.1`, which is why they looked huge before
+this was honoured). CW/CCW direction is taken from the prop mesh name. Spin is
+driven by **real flight data** (`mavros/state` armed + `mavros/vfr_hud` throttle;
+rate ∝ throttle, zero when disarmed; `max_spin_rate`/`idle_spin_rate`).
 
-The launches pass the SDF values verbatim: `rotor_meshes`, `rotor_link_poses`
-(6/rotor in the model frame), `rotor_visual_poses` (6/rotor within the link),
-`base_pose`, `body_pose`, `rotor_dirs`. `show_props:=false` hides them; in
-geometric mode (`marker_mesh:=none`) the rotors fall back to spinning blade bars
-(`arm_length`, `prop_z`, `prop_len`). Spin speed: `max_spin_rate`/`idle_spin_rate`.
+In geometric mode (`marker_mesh:=none`) the body is a box+arms and the rotors are
+spinning blade bars (`arm_length`, `prop_z`, `prop_len`, `show_props`).
 
 ## Notes
 

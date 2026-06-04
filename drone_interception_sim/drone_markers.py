@@ -6,15 +6,23 @@ has nothing to render for the bodies. This node fills that gap by publishing a
 MarkerArray parented to ``frame_id`` (e.g. ``interceptor/base_link``); the
 markers then move with the drone through TF - no URDF needed.
 
-By default it draws a simple geometric quadcopter (body + arms + rotor disks),
-which works regardless of mesh availability. Set ``mesh_resource`` (a
-file:// or package:// URI) to render an actual mesh instead.
+Three rendering modes, in priority order:
+  1. ``model_sdf`` set  -> parse the model SDF and render EVERY visual mesh at
+     its true pose/scale (body, motors, legs, props), spinning the propellers on
+     the ``*rotor*`` links. This reproduces the full Gazebo model.
+  2. ``mesh_resource`` set -> a single body mesh + geometric spinning prop blades.
+  3. neither -> a simple geometric quadcopter (body + arms + spinning blades).
+
+Propeller spin is driven by real flight data (``mavros/state`` armed +
+``mavros/vfr_hud`` throttle); the rate is proportional to throttle and zero when
+disarmed.
 """
 import math
+import os
+import xml.etree.ElementTree as ET
 
 from geometry_msgs.msg import Point
 from mavros_msgs.msg import State, VfrHud
-from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
@@ -54,6 +62,14 @@ def _qrot(q, v):
     return (rx, ry, rz)
 
 
+def _parse_pose(text):
+    """SDF '<pose>' text -> (position 3-tuple, quaternion (x,y,z,w))."""
+    vals = [float(x) for x in (text or '').split()]
+    while len(vals) < 6:
+        vals.append(0.0)
+    return (vals[0], vals[1], vals[2]), _quat_from_rpy(vals[3], vals[4], vals[5])
+
+
 class DroneMarkers(Node):
     """Publish a quadcopter MarkerArray on the drone's base_link frame."""
 
@@ -61,37 +77,21 @@ class DroneMarkers(Node):
         super().__init__('drone_markers')
         self.declare_parameter('frame_id', 'base_link')
         self.declare_parameter('marker_ns', 'drone')
-        self.declare_parameter('color', [0.1, 0.4, 1.0])   # RGB 0..1
+        self.declare_parameter('color', [0.1, 0.4, 1.0])   # RGB 0..1 (geom modes)
         self.declare_parameter('arm_length', 0.25)
         self.declare_parameter('rate', 10.0)
-        self.declare_parameter('mesh_resource', '')        # file://... to use a mesh
+        # Full-model mode: render every visual of this model SDF.
+        self.declare_parameter('model_sdf', '')             # path to model.sdf
+        self.declare_parameter('model_dir', '')             # base for model:// URIs
+        # Single-mesh / geometric fallbacks.
+        self.declare_parameter('mesh_resource', '')         # file://... single body mesh
         self.declare_parameter('mesh_scale', 1.0)
         # Propeller animation driven by the real PX4 throttle (VFR_HUD).
-        self.declare_parameter('max_spin_rate', 80.0)      # rad/s at full throttle
-        self.declare_parameter('idle_spin_rate', 12.0)     # rad/s when armed, ~0 throttle
-        # Propeller overlay (the body mesh has no props of its own).
-        self.declare_parameter('show_props', True)
-        self.declare_parameter('prop_z', 0.10)             # blade height above base_link
-        self.declare_parameter('prop_len', 0.22)           # blade span
-        # Real per-rotor propeller meshes rendered at their true SDF poses. When
-        # rotor_meshes is set, each rotor is a spinning MESH_RESOURCE; otherwise
-        # geometric blades are used. Poses are flat [x,y,z,roll,pitch,yaw] groups
-        # straight from the model SDF, so the node reproduces Gazebo exactly:
-        #   marker = T(base_link<-link) . Rz(spin) . T(visual-in-link)
-        #   - rotor_link_poses : each rotor LINK pose in the MODEL frame (6/rotor)
-        #   - rotor_visual_poses: each prop VISUAL pose within its link (6/rotor)
-        #   - base_pose        : base_link pose in the MODEL frame (6)
-        #   - rotor_dirs       : +1 CCW / -1 CW per rotor
-        # dynamic_typing: an empty-list default would otherwise be inferred as
-        # BYTE_ARRAY and reject the STRING/DOUBLE arrays the launch passes.
-        dyn = ParameterDescriptor(dynamic_typing=True)
-        self.declare_parameter('rotor_meshes', [], dyn)
-        self.declare_parameter('rotor_link_poses', [], dyn)
-        self.declare_parameter('rotor_visual_poses', [], dyn)
-        self.declare_parameter('base_pose', [0.0] * 6, dyn)
-        self.declare_parameter('rotor_dirs', [], dyn)
-        # Body mesh visual pose relative to base_link (e.g. x500 = 0,0,.025,0,0,pi).
-        self.declare_parameter('body_pose', [0.0] * 6, dyn)
+        self.declare_parameter('max_spin_rate', 80.0)       # rad/s at full throttle
+        self.declare_parameter('idle_spin_rate', 12.0)      # rad/s when armed, ~0 throttle
+        self.declare_parameter('show_props', True)          # geometric/single-mesh modes
+        self.declare_parameter('prop_z', 0.10)
+        self.declare_parameter('prop_len', 0.22)
 
         self.frame_id = self.get_parameter('frame_id').value
         self.ns = self.get_parameter('marker_ns').value
@@ -104,13 +104,13 @@ class DroneMarkers(Node):
         self.show_props = self.get_parameter('show_props').value
         self.prop_z = self.get_parameter('prop_z').value
         self.prop_len = self.get_parameter('prop_len').value
-        self.rotor_meshes = list(self.get_parameter('rotor_meshes').value)
-        self.rotor_dirs = list(self.get_parameter('rotor_dirs').value)
-        link_poses = list(self.get_parameter('rotor_link_poses').value)
-        vis_poses = list(self.get_parameter('rotor_visual_poses').value)
-        base = list(self.get_parameter('base_pose').value) or [0.0] * 6
-        self._rotors = self._build_rotor_transforms(base, link_poses, vis_poses)
-        self.body_pose = list(self.get_parameter('body_pose').value) or [0.0] * 6
+
+        model_sdf = self.get_parameter('model_sdf').value
+        model_dir = self.get_parameter('model_dir').value
+        self.visuals = self._parse_sdf(model_sdf, model_dir) if model_sdf else []
+        if model_sdf and not self.visuals:
+            self.get_logger().warn(
+                f'no visuals parsed from {model_sdf}; falling back to geometry')
 
         # Real flight state for the propeller spin.
         self.armed = False
@@ -128,12 +128,99 @@ class DroneMarkers(Node):
         period = 1.0 / max(self.get_parameter('rate').value, 1e-3)
         self.create_timer(period, self._publish)
 
+    # ---- SDF parsing -------------------------------------------------------
+
+    def _resolve_uri(self, uri, model_dir, sdf_dir):
+        if uri.startswith('model://'):
+            return 'file://' + os.path.join(model_dir, uri[len('model://'):])
+        if uri.startswith(('file://', 'package://')):
+            return uri
+        if uri.startswith('/'):
+            return 'file://' + uri
+        return 'file://' + os.path.join(sdf_dir, uri)
+
+    def _parse_sdf(self, sdf_path, model_dir):
+        """Return a list of visual specs in the base_link frame.
+
+        Each spec is (p_link, q_link, p_vis, q_vis, scale, uri, spin_dir) so the
+        per-frame marker pose is T(base_link<-link) . Rz(spin) . T(visual).
+        spin_dir is +1 (CCW) / -1 (CW) for '*rotor*' links, else 0 (static).
+        """
+        visuals = []
+        try:
+            root = ET.parse(sdf_path).getroot()
+        except (OSError, ET.ParseError) as exc:
+            self.get_logger().warn(f'cannot parse {sdf_path}: {exc}')
+            return visuals
+        model = root.find('model')
+        if model is None:
+            return visuals
+        sdf_dir = os.path.dirname(sdf_path)
+        if not model_dir:
+            model_dir = os.path.dirname(sdf_dir)   # parent of this model's own dir
+
+        # base_link link pose in the model frame (markers are in the base_link frame)
+        base_pos, base_quat = (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)
+        for link in model.findall('link'):
+            if link.get('name') == 'base_link':
+                pe = link.find('pose')
+                if pe is not None:
+                    base_pos, base_quat = _parse_pose(pe.text)
+        bq_inv = _qconj(base_quat)
+
+        for link in model.findall('link'):
+            lname = (link.get('name') or '').lower()
+            pe = link.find('pose')
+            lpos, lquat = _parse_pose(pe.text) if pe is not None else (
+                (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+            q_link = _qmul(bq_inv, lquat)
+            p_link = _qrot(bq_inv, (lpos[0] - base_pos[0],
+                                    lpos[1] - base_pos[1],
+                                    lpos[2] - base_pos[2]))
+            spin_dir = 0.0
+            if 'rotor' in lname:
+                spin_dir = 1.0
+                for vis in link.findall('visual'):
+                    ue = vis.find('.//mesh/uri')
+                    fn = (ue.text or '').lower() if ue is not None else ''
+                    if 'ccw' in fn:
+                        spin_dir = 1.0
+                        break
+                    if 'cw' in fn:
+                        spin_dir = -1.0
+                        break
+            for vis in link.findall('visual'):
+                mesh = vis.find('.//mesh')
+                if mesh is None:
+                    continue   # skip plane/box decals (FMU labels etc.)
+                ue = mesh.find('uri')
+                if ue is None or not ue.text:
+                    continue
+                uri = self._resolve_uri(ue.text.strip(), model_dir, sdf_dir)
+                se = mesh.find('scale')
+                if se is not None and se.text:
+                    sv = [float(x) for x in se.text.split()]
+                    while len(sv) < 3:
+                        sv.append(sv[-1] if sv else 1.0)
+                    scale = (sv[0], sv[1], sv[2])
+                else:
+                    scale = (1.0, 1.0, 1.0)
+                ve = vis.find('pose')
+                vpos, vquat = _parse_pose(ve.text) if ve is not None else (
+                    (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+                visuals.append((p_link, q_link, vpos, vquat, scale, uri, spin_dir))
+        return visuals
+
+    # ---- callbacks ---------------------------------------------------------
+
     def _state_cb(self, msg):
         self.armed = msg.armed
 
     def _vfr_cb(self, msg):
         # VFR_HUD.throttle is 0..100 (percent) in MAVLink/mavros.
         self.throttle = max(0.0, min(1.0, msg.throttle / 100.0))
+
+    # ---- markers -----------------------------------------------------------
 
     def _base(self, marker_id, mtype):
         m = Marker()
@@ -148,69 +235,36 @@ class DroneMarkers(Node):
         m.pose.orientation.w = 1.0
         return m
 
-    def _build_rotor_transforms(self, base, link_poses, vis_poses):
-        """Precompute each rotor's static transforms in the base_link frame.
-
-        Returns a list of (p_link, q_link, p_vis, q_vis, spin_dir) where
-        (p_link, q_link) = T(base_link<-link) = inv(base) . link_in_model, and
-        (p_vis, q_vis) = the prop visual pose within its link. Per frame the
-        marker pose is then T_link . Rz(spin) . T_visual.
-        """
-        rotors = []
-        if not link_poses:
-            return rotors
-        bp = (base[0], base[1], base[2])
-        bq_inv = _qconj(_quat_from_rpy(base[3], base[4], base[5]))
-        n = len(link_poses) // 6
-        for i in range(n):
-            lx, ly, lz, lr, lp, lyaw = link_poses[i * 6:i * 6 + 6]
-            q_link = _qmul(bq_inv, _quat_from_rpy(lr, lp, lyaw))
-            p_link = _qrot(bq_inv, (lx - bp[0], ly - bp[1], lz - bp[2]))
-            if vis_poses and len(vis_poses) >= (i + 1) * 6:
-                vx, vy, vz, vr, vp, vyaw = vis_poses[i * 6:i * 6 + 6]
+    def _model_markers(self):
+        """Full model: every parsed visual at its true pose/scale, rotors spinning."""
+        markers = []
+        for i, (p_link, q_link, p_vis, q_vis, scale, uri, spin_dir) in \
+                enumerate(self.visuals):
+            if spin_dir != 0.0:
+                s = spin_dir * self.spin_angle
+                qs = (0.0, 0.0, math.sin(s / 2.0), math.cos(s / 2.0))
             else:
-                vx = vy = vz = vr = vp = vyaw = 0.0
-            q_vis = _quat_from_rpy(vr, vp, vyaw)
-            d = self.rotor_dirs[i] if i < len(self.rotor_dirs) else 1.0
-            rotors.append((p_link, q_link, (vx, vy, vz), q_vis, d))
-        return rotors
+                qs = (0.0, 0.0, 0.0, 1.0)
+            q_ls = _qmul(q_link, qs)
+            q_marker = _qmul(q_ls, q_vis)
+            off = _qrot(q_ls, p_vis)
+            m = self._base(i, Marker.MESH_RESOURCE)
+            m.mesh_resource = uri
+            m.mesh_use_embedded_materials = True   # .dae materials; STL uses color
+            m.pose.position.x = p_link[0] + off[0]
+            m.pose.position.y = p_link[1] + off[1]
+            m.pose.position.z = p_link[2] + off[2]
+            m.pose.orientation.x, m.pose.orientation.y = q_marker[0], q_marker[1]
+            m.pose.orientation.z, m.pose.orientation.w = q_marker[2], q_marker[3]
+            m.scale.x, m.scale.y, m.scale.z = scale
+            m.color.r = m.color.g = m.color.b = 0.15   # for material-less STL meshes
+            m.color.a = 1.0
+            markers.append(m)
+        return markers
 
     def _prop_markers(self, z):
-        """The spinning propellers.
-
-        With real rotor meshes configured, each rotor is a MESH_RESOURCE placed
-        by T(base_link<-link) . Rz(spin) . T(visual) so it reproduces Gazebo and
-        spins about its true hub; otherwise a geometric blade bar is used. The
-        spin angle is the real-throttle-driven value.
-        """
+        """Geometric spinning blade bars at the X-quad rotor positions."""
         markers = []
-        if self.rotor_meshes and self._rotors:
-            for i, uri in enumerate(self.rotor_meshes):
-                if i >= len(self._rotors):
-                    break
-                p_link, q_link, p_vis, q_vis, d = self._rotors[i]
-                s = d * self.spin_angle
-                qs = (0.0, 0.0, math.sin(s / 2.0), math.cos(s / 2.0))
-                q_ls = _qmul(q_link, qs)
-                q_marker = _qmul(q_ls, q_vis)
-                off = _qrot(q_ls, p_vis)
-                r = self._base(2 + i, Marker.MESH_RESOURCE)
-                r.mesh_resource = uri
-                r.mesh_use_embedded_materials = True   # .dae materials; STL uses color
-                r.pose.position.x = p_link[0] + off[0]
-                r.pose.position.y = p_link[1] + off[1]
-                r.pose.position.z = p_link[2] + off[2]
-                r.pose.orientation.x = q_marker[0]
-                r.pose.orientation.y = q_marker[1]
-                r.pose.orientation.z = q_marker[2]
-                r.pose.orientation.w = q_marker[3]
-                r.scale.x = r.scale.y = r.scale.z = 1.0
-                r.color.r = r.color.g = r.color.b = 0.1   # dark props for STL meshes
-                r.color.a = 1.0
-                markers.append(r)
-            return markers
-
-        # Geometric blade fallback (no real mesh configured).
         d = self.arm / math.sqrt(2.0)
         rotors = [(d, d), (-d, -d), (d, -d), (-d, d)]
         spin_dir = [1.0, 1.0, -1.0, -1.0]
@@ -230,26 +284,17 @@ class DroneMarkers(Node):
         m.mesh_resource = self.mesh
         m.mesh_use_embedded_materials = True
         m.scale.x = m.scale.y = m.scale.z = float(self.mesh_scale)
-        # Body mesh visual pose relative to base_link (identity for most models).
-        bp = self.body_pose
-        m.pose.position.x, m.pose.position.y, m.pose.position.z = bp[0], bp[1], bp[2]
-        qx, qy, qz, qw = _quat_from_rpy(bp[3], bp[4], bp[5])
-        m.pose.orientation.x, m.pose.orientation.y = qx, qy
-        m.pose.orientation.z, m.pose.orientation.w = qz, qw
         markers = [m]
-        # The body mesh has no propellers, so overlay spinning prop blades.
         if self.show_props:
             markers += self._prop_markers(self.prop_z)
         return markers
 
     def _quad_markers(self):
         markers = []
-        # body
         body = self._base(0, Marker.CUBE)
         body.scale.x, body.scale.y, body.scale.z = 0.18, 0.18, 0.06
         markers.append(body)
 
-        # arms (X config) as a LINE_LIST: centre -> each rotor
         arms = self._base(1, Marker.LINE_LIST)
         arms.scale.x = 0.03
         d = self.arm / math.sqrt(2.0)
@@ -273,7 +318,12 @@ class DroneMarkers(Node):
             self.spin_angle = (self.spin_angle + self._spin_rate() *
                                (now - self._last_t)) % (2.0 * math.pi)
         self._last_t = now
-        markers = self._mesh_marker() if self.mesh else self._quad_markers()
+        if self.visuals:
+            markers = self._model_markers()
+        elif self.mesh:
+            markers = self._mesh_marker()
+        else:
+            markers = self._quad_markers()
         self.pub.publish(MarkerArray(markers=markers))
 
 

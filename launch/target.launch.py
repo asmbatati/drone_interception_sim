@@ -124,36 +124,22 @@ def launch_setup(context, *args, **kwargs):
         ], output='log'))
 
     # Body markers for RViz (no URDF; attached to base_link via TF). Default to
-    # the real x3_uav mesh; marker_mesh:=none -> animated quad; file://... -> custom.
+    # the FULL real x3 model parsed from its SDF (which carries the prop mesh
+    # scale=0.1 etc.); marker_mesh:=none -> geometric quad; file://... -> custom.
     marker_mesh = LaunchConfiguration('marker_mesh').perform(context)
-    if marker_mesh == 'none':
-        mesh = ''
-    elif marker_mesh:
-        mesh = marker_mesh
-    elif px4_dir:
-        mesh = ('file://' + px4_dir +
-                '/Tools/simulation/gz/models/x3_uav/meshes/x3.dae')
-    else:
-        mesh = ''
     mk_params = [{'use_sim_time': True},
                  {'frame_id': NS + '/base_link'},
                  {'marker_ns': NS},
                  {'color': [1.0, 0.2, 0.1]},   # target = red (geom fallback)
-                 {'mesh_resource': mesh},
                  {'arm_length': 0.16}]          # x3 small quad (geom fallback)
-    # Real x3 propeller meshes at their TRUE SDF poses (only in mesh mode).
-    # x3_uav/model.sdf: base_link is the model origin and the body + prop visuals
-    # are all identity, so only the rotor LINK poses are needed.
-    if mesh and px4_dir:
-        pd = 'file://' + px4_dir + '/Tools/simulation/gz/models/x3_uav/meshes/'
-        mk_params += [
-            {'rotor_meshes': [pd + 'propeller_ccw.dae', pd + 'propeller_ccw.dae',
-                              pd + 'propeller_cw.dae', pd + 'propeller_cw.dae']},
-            {'rotor_link_poses': [0.13, -0.22, 0.023, 0.0, 0.0, 0.0,
-                                  -0.13, 0.2, 0.023, 0.0, 0.0, 0.0,
-                                  0.13, 0.22, 0.023, 0.0, 0.0, 0.0,
-                                  -0.13, -0.2, 0.023, 0.0, 0.0, 0.0]},
-            {'rotor_dirs': [1.0, 1.0, -1.0, -1.0]}]
+    if marker_mesh == 'none':
+        pass                                    # geometric quad
+    elif marker_mesh:
+        mk_params.append({'mesh_resource': marker_mesh})   # single custom mesh
+    elif px4_dir:
+        models = px4_dir + '/Tools/simulation/gz/models'
+        mk_params += [{'model_sdf': models + '/x3_uav/model.sdf'},
+                      {'model_dir': models}]
     actions.append(Node(
         package='drone_interception_sim', executable='drone_markers',
         name='drone_markers', namespace=NS, parameters=mk_params, output='log'))

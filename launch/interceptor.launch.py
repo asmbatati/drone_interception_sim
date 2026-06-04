@@ -243,41 +243,22 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}], output='log'))
 
     # Body markers for RViz (no URDF; attached to base_link via TF). Default to
-    # the real x500 mesh; marker_mesh:=none falls back to the animated quad;
-    # marker_mesh:=file://... overrides with a custom mesh.
+    # the FULL real x500 model parsed from its SDF; marker_mesh:=none -> animated
+    # geometric quad; marker_mesh:=file://... -> a single custom mesh.
     marker_mesh = LaunchConfiguration('marker_mesh').perform(context)
-    if marker_mesh == 'none':
-        mesh = ''
-    elif marker_mesh:
-        mesh = marker_mesh
-    elif px4_dir:
-        mesh = ('file://' + px4_dir +
-                '/Tools/simulation/gz/models/x500_base/meshes/NXP-HGD-CF.dae')
-    else:
-        mesh = ''
     mk_params = [{'use_sim_time': True},
                  {'frame_id': NS + '/base_link'},
                  {'marker_ns': NS},
                  {'color': [0.1, 0.4, 1.0]},   # interceptor = blue (geom fallback)
-                 {'mesh_resource': mesh},
                  {'arm_length': 0.25}]          # x500 rotor radius (geom fallback)
-    # Real x500 propeller meshes at their TRUE SDF poses (only in mesh mode).
-    # Values are straight from x500_base/model.sdf: base_link is the model origin,
-    # the NXP body mesh sits at visual pose (0,0,.025, yaw pi), and each prop
-    # visual is offset within its rotor link to centre the hub on the spin axis.
-    if mesh and px4_dir:
-        pd = 'file://' + px4_dir + '/Tools/simulation/gz/models/x500_base/meshes/'
-        vis = [-0.022, -0.14638461538461536, -0.016, 0.0, 0.0, 0.0]
-        mk_params += [
-            {'rotor_meshes': [pd + '1345_prop_ccw.stl', pd + '1345_prop_ccw.stl',
-                              pd + '1345_prop_cw.stl', pd + '1345_prop_cw.stl']},
-            {'rotor_link_poses': [0.174, -0.174, 0.06, 0.0, 0.0, 0.0,
-                                  -0.174, 0.174, 0.06, 0.0, 0.0, 0.0,
-                                  0.174, 0.174, 0.06, 0.0, 0.0, 0.0,
-                                  -0.174, -0.174, 0.06, 0.0, 0.0, 0.0]},
-            {'rotor_visual_poses': vis + vis + vis + vis},
-            {'rotor_dirs': [1.0, 1.0, -1.0, -1.0]},
-            {'body_pose': [0.0, 0.0, 0.025, 0.0, 0.0, 3.141592653589793]}]
+    if marker_mesh == 'none':
+        pass                                    # geometric quad
+    elif marker_mesh:
+        mk_params.append({'mesh_resource': marker_mesh})   # single custom mesh
+    elif px4_dir:
+        models = px4_dir + '/Tools/simulation/gz/models'
+        mk_params += [{'model_sdf': models + '/x500_base/model.sdf'},
+                      {'model_dir': models}]
     actions.append(Node(
         package='drone_interception_sim', executable='drone_markers',
         name='drone_markers', namespace=NS, parameters=mk_params, output='log'))
