@@ -70,7 +70,7 @@ def launch_setup(context, *args, **kwargs):
     # PX4 SITL (attaches to the interceptor's already-running Gazebo server)
     actions.append(IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uav_gz_sim'),
+            PathJoinSubstitution([FindPackageShare('uavros2'),
                                   'launch', 'gz_sim.launch.py'])
         ]),
         launch_arguments={
@@ -86,7 +86,7 @@ def launch_setup(context, *args, **kwargs):
     # MAVROS
     actions.append(IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uav_gz_sim'),
+            PathJoinSubstitution([FindPackageShare('uavros2'),
                                   'launch', 'mavros.launch.py'])
         ]),
         launch_arguments={
@@ -112,7 +112,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True}], output='log'))
 
     actions.append(Node(
-        package='uav_gz_sim', executable='tf_relay',
+        package='uavros2', executable='tf_relay',
         name='odom2base_tf_relay', namespace=NS,
         parameters=[
             {'use_sim_time': True},

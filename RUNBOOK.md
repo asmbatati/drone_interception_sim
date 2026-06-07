@@ -20,7 +20,7 @@ cd ~/drone_interception_ws/ros2_ws && source install/setup.bash
 > `ros_domain_id:=''` to inherit the shell. External `gz` tools need
 > `GZ_PARTITION=d2d_intercept`.
 
-> Preconditions: PX4 built (`make px4_sitl` in the in-tree PX4), `uav_gz_sim`
+> Preconditions: PX4 built (`make px4_sitl` in the in-tree PX4), `uavros2`
 > install.sh run once (models/airframes in PX4), workspace built. If you also
 > run another PX4+gz sim (e.g. `drone_arm_ws`), this sim is isolated via
 > `GZ_PARTITION=d2d_intercept` — external `gz` tools must set that to connect.

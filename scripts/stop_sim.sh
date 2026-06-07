@@ -25,7 +25,7 @@ done
 pkill -9 -f "mavros_node .*__ns:=/interceptor" 2>/dev/null
 pkill -9 -f "mavros_node .*__ns:=/target" 2>/dev/null
 pkill -9 -f "drone_interception_sim/lib" 2>/dev/null
-pkill -9 -f "uav_gz_sim/lib/uav_gz_sim/tf_relay" 2>/dev/null
+pkill -9 -f "uavros2/lib/uavros2/tf_relay" 2>/dev/null
 pkill -9 -f "ros2 launch drone_interception_sim" 2>/dev/null
 
 sleep 1

@@ -153,7 +153,7 @@ def launch_setup(context, *args, **kwargs):
     # PX4 SITL + Gazebo (this instance spawns the shared server)
     gz_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uav_gz_sim'),
+            PathJoinSubstitution([FindPackageShare('uavros2'),
                                   'launch', 'gz_sim.launch.py'])
         ]),
         launch_arguments={
@@ -171,7 +171,7 @@ def launch_setup(context, *args, **kwargs):
     # MAVROS
     mavros_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uav_gz_sim'),
+            PathJoinSubstitution([FindPackageShare('uavros2'),
                                   'launch', 'mavros.launch.py'])
         ]),
         launch_arguments={
@@ -208,9 +208,9 @@ def launch_setup(context, *args, **kwargs):
         arguments=['0', '0', '0', '0', '0', '0', 'map', NS + '/odom'],
         parameters=[{'use_sim_time': True}], output='log'))
 
-    # Dynamic odom->base_link from MAVROS local pose (reuse uav_gz_sim tf_relay)
+    # Dynamic odom->base_link from MAVROS local pose (reuse uavros2 tf_relay)
     actions.append(Node(
-        package='uav_gz_sim', executable='tf_relay',
+        package='uavros2', executable='tf_relay',
         name='odom2base_tf_relay', namespace=NS,
         parameters=[
             {'use_sim_time': True},

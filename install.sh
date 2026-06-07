@@ -2,10 +2,10 @@
 #
 # Copy drone_interception_sim's interception-specific assets into the PX4 tree.
 #
-# This package reuses uav_gz_sim's models (x500_d435, x3_uav) and airframes
-# (4020, 4021), which uav_gz_sim/install.sh already copies into PX4. Run THIS
+# This package reuses uavros2's models (x500_d435, x3_uav) and airframes
+# (4020, 4021), which uavros2/install.sh already copies into PX4. Run THIS
 # script only for the *delta* this package adds (custom worlds / airframes).
-# It assumes uav_gz_sim/install.sh has already been run.
+# It assumes uavros2/install.sh has already been run.
 #
 # Required env var: PX4_DIR  (path to the PX4-Autopilot checkout)
 set -euo pipefail

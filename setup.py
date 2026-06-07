@@ -29,7 +29,7 @@ setup(
     zip_safe=True,
     maintainer='Abdulrahman S. Al-Batati',
     maintainer_email='asmalbatati@hotmail.com',
-    description='Drone-to-drone interception multi-drone simulation assets built on uav_gz_sim.',
+    description='Drone-to-drone interception multi-drone simulation assets built on uavros2.',
     license='MIT',
     tests_require=['pytest'],
     entry_points={

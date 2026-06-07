@@ -2,7 +2,7 @@
 
 Drone-to-drone **interception** simulation assets (interceptor + target multi-drone)
 for ROS 2 **Jazzy** + Gazebo **Harmonic** + PX4 SITL. Built on top of
-[`uav_gz_sim`](../uav_gz_sim) — it reuses that package's parametric `gz_sim` /
+[`uavros2`](../uavros2) — it reuses that package's parametric `gz_sim` /
 `mavros` launches, drone models (`x500_d435`, `x3_uav`) and PX4 airframes
 (`4020`, `4021`) rather than duplicating them.
 
@@ -35,7 +35,7 @@ your shell. Override per launch with `px4_dir:=/path/to/PX4-Autopilot`.
 That in-tree PX4 must be built (`make px4_sitl`) and provide the airframes used
 here: `4020_gz_x500_d435` (interceptor) and `4022_gz_x3_uav` (target), plus the
 `x500_d435` and `x3_uav` gz models. (Note: the in-tree PX4 numbers `x3_uav` as
-`4022`; a `uav_gz_sim`-provisioned PX4 uses `4021` — adjust `px4_autostart_id`
+`4022`; a `uavros2`-provisioned PX4 uses `4021` — adjust `px4_autostart_id`
 if you point at a differently-provisioned tree.)
 
 ## Build & run

@@ -5,13 +5,13 @@
   <version>0.1.0</version>
   <description>
     Drone-to-drone interception simulation assets (interceptor + target multi-drone)
-    built on top of uav_gz_sim. Spawns both vehicles into a single Gazebo Harmonic
+    built on top of uavros2. Spawns both vehicles into a single Gazebo Harmonic
     world, each its own PX4 SITL instance, for ROS 2 Jazzy.
   </description>
   <maintainer email="asmalbatati@hotmail.com">Abdulrahman S. Al-Batati</maintainer>
   <license>MIT</license>
 
-  <exec_depend>uav_gz_sim</exec_depend>
+  <exec_depend>uavros2</exec_depend>
   <exec_depend>mavros</exec_depend>
   <exec_depend>mavros_msgs</exec_depend>
   <exec_depend>ros_gz_bridge</exec_depend>
