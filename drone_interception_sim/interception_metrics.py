@@ -7,10 +7,17 @@ engagement. Use it to compare methods on the same scenario.
 
 Reports (printed on capture/timeout and written to CSV):
   * outcome            capture | timeout
-  * time_to_intercept  seconds from first valid range to capture
+  * time_to_intercept  seconds from first valid range to capture (NOTE: starts
+                       when both odoms are seen, so for full-pipeline runs it
+                       includes the arm+takeoff phase)
   * min_range          closest approach (miss distance if no capture)
 
 CSV columns: t, range, ix, iy, iz, tx, ty, tz
+
+Additionally APPENDS one summary row per run to ``summary_csv_path`` — the
+cross-method benchmark table (method, outcome, time_to_intercept, min_range,
+capture_radius, trace csv). Point every run at the same summary file and the
+comparison matrix builds itself.
 
 Launch under the interceptor namespace (or remap the two odom topics). Both
 odometries are in their own EKF/spawn frame, so spawn offsets are added to get a
@@ -34,6 +41,7 @@ class InterceptionMetrics(Node):
         self.declare_parameter('capture_radius', 1.0)
         self.declare_parameter('timeout', 120.0)
         self.declare_parameter('csv_path', '/tmp/interception_metrics.csv')
+        self.declare_parameter('summary_csv_path', '/tmp/interception_results.csv')
         self.declare_parameter('interceptor_spawn', [0.0, 0.0, 0.0])
         self.declare_parameter('target_spawn', [10.0, 0.0, 0.0])
 
@@ -41,6 +49,7 @@ class InterceptionMetrics(Node):
         self.capture_radius = self.get_parameter('capture_radius').value
         self.timeout = self.get_parameter('timeout').value
         self.csv_path = self.get_parameter('csv_path').value
+        self.summary_csv_path = self.get_parameter('summary_csv_path').value
         self.ispawn = list(self.get_parameter('interceptor_spawn').value)
         self.tspawn = list(self.get_parameter('target_spawn').value)
 
@@ -116,6 +125,25 @@ class InterceptionMetrics(Node):
             self._csv.close()
         except Exception:
             pass
+        self._append_summary(outcome, t)
+
+    def _append_summary(self, outcome, t):
+        """Append one row to the cross-method benchmark table."""
+        try:
+            import os
+            new = not os.path.exists(self.summary_csv_path)
+            with open(self.summary_csv_path, 'a', newline='') as f:
+                w = csv.writer(f)
+                if new:
+                    w.writerow(['method', 'outcome', 'time_to_intercept_s',
+                                'min_range_m', 'capture_radius_m', 'trace_csv'])
+                w.writerow([self.method, outcome, f'{t:.2f}',
+                            f'{self.min_range:.3f}', self.capture_radius,
+                            self.csv_path])
+            self.get_logger().info(
+                f"summary row appended -> {self.summary_csv_path}")
+        except Exception as e:
+            self.get_logger().warn(f"could not append summary: {e}")
 
 
 def main(args=None):

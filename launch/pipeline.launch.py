@@ -122,11 +122,20 @@ def generate_launch_description():
                     ('target_odom', '/target/mavros/local_position/odom')],
         condition=bt_if)
 
+    # Method string is self-labeling (the selected backends), so the summary
+    # table rows are directly comparable across benchmark runs.
     metrics = Node(
         package='drone_interception_sim', executable='interception_metrics',
         name='interception_metrics', namespace=ns, output='screen',
-        parameters=[{'use_sim_time': use_sim_time, 'method': 'pipeline',
-                     'csv_path': LaunchConfiguration('csv_path')}],
+        parameters=[{'use_sim_time': use_sim_time,
+                     'method': ['pipeline/', LaunchConfiguration('planner'),
+                                '+', LaunchConfiguration('predictor'),
+                                '+', LaunchConfiguration('mpc'),
+                                '+', LaunchConfiguration('controller')],
+                     'csv_path': LaunchConfiguration('csv_path'),
+                     'summary_csv_path': LaunchConfiguration('summary_csv_path')}],
+        remappings=[('interceptor_odom', '/interceptor/mavros/local_position/odom'),
+                    ('target_odom', '/target/mavros/local_position/odom')],
         condition=IfCondition(LaunchConfiguration('metrics')))
 
     # Visualization: republish actual/estimated/interceptor poses, predicted +
@@ -175,6 +184,9 @@ def generate_launch_description():
         DeclareLaunchArgument('capture_radius', default_value='1.0'),
         DeclareLaunchArgument('metrics', default_value='false'),
         DeclareLaunchArgument('csv_path', default_value='/tmp/pipeline_metrics.csv'),
+        DeclareLaunchArgument('summary_csv_path',
+                              default_value='/tmp/interception_results.csv',
+                              description='per-run summary table (appended)'),
         DeclareLaunchArgument('viz', default_value='true',
                               description='publish the interception MarkerArray '
                                           '(shown in the sim RViz)'),

@@ -64,7 +64,9 @@ above); same RMW + domain. See ARCHITECTURE.md for the full design.
 # FSM head (default): arms, AUTO.TAKEOFF, then OFFBOARD so the cascade pursues,
 # AUTO.RTL on capture. + benchmark:
 ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=fsm metrics:=true \
-    csv_path:=/tmp/pipeline.csv
+    csv_path:=/tmp/pipeline.csv   # also APPENDS one row per run to /tmp/interception_results.csv
+# the summary row's method string self-labels the backends, so repeated runs
+# with different planner/predictor/mpc/controller args build the comparison table
 # swap any single stage's algorithm, nothing else changes:
 ros2 launch drone_interception_sim pipeline.launch.py predictor:=poly controller:=se3
 # other orchestration heads:
