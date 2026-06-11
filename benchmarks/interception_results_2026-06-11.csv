@@ -1,0 +1,7 @@
+method,outcome,time_to_intercept_s,min_range_m,capture_radius_m,trace_csv
+pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,15.60,0.778,1.0,/tmp/pipeline_metrics.csv
+pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,16.10,0.868,1.0,/tmp/trace_r_gru.csv
+pipeline/tail_chase+gru+passthrough+px4_setpoint,capture,15.30,0.826,1.0,/tmp/trace_t_gru.csv
+pipeline/pn_lead+gru+passthrough+px4_setpoint,timeout,120.00,3.909,1.0,/tmp/trace_p_gru.csv
+pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,12.75,0.966,1.0,/tmp/trace_r_cv.csv
+pn,capture,10.70,0.748,1.0,/tmp/trace_pn.csv
