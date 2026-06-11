@@ -6,13 +6,23 @@ terminal per block. **Every terminal that talks to the sim must use the same
 each other, and (critically) other simulators on the machine will collide on
 `/clock`, causing "jump back in time" and PX4 refusing to arm.
 
-Put this at the top of **every** terminal (the sim defaults to domain 77):
+Put this at the top of **every** terminal (the sim defaults to domain 77 and
+**FastRTPS**):
 
 ```bash
-export RMW_IMPLEMENTATION=rmw_zenoh_cpp     # matches your .bashrc
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp   # sim default (see note below)
 export ROS_DOMAIN_ID=77                      # matches the sim's default
 cd ~/drone_interception_ws/ros2_ws && source install/setup.bash
 ```
+
+> **Why FastRTPS, not zenoh:** on this setup the zenoh RMW reliably delivers
+> only low-rate topics (e.g. `mavros/state`) but **drops high-rate ones**
+> (mavros odom @30 Hz, `/clock` @200 Hz), which breaks sim-time and the
+> detection→KF→prediction→… perception chain. FastRTPS (Fast DDS, the ROS 2
+> default) delivers them reliably. The launches force it via `os.environ` and
+> expose `rmw:=` to override (`rmw:=rmw_zenoh_cpp` starts the zenoh router
+> automatically). Whatever you pick, **every terminal must export the same
+> `RMW_IMPLEMENTATION`**.
 
 > Isolation: the sim runs on `GZ_PARTITION=d2d_intercept` (Gazebo transport) and
 > `ROS_DOMAIN_ID=77` (ROS graph) so it coexists with other sims (drone_arm_ws,
@@ -27,13 +37,54 @@ cd ~/drone_interception_ws/ros2_ws && source install/setup.bash
 
 ## 0. Bring up the scene (two drones, one Gazebo)
 ```bash
+# RECOMMENDED: the wrapper exports FastRTPS (reliable high-rate /clock+odom)
+# before ros2 launch. The launch file itself can't force the RMW for its mavros
+# nodes, so the env must be set in the shell first.
+src/drone_interception_sim/scripts/run_sim.sh                 # FastRTPS (default)
+src/drone_interception_sim/scripts/run_sim.sh gpu:=false headless:=1
+RMW=rmw_zenoh_cpp src/drone_interception_sim/scripts/run_sim.sh   # force a different RMW
+
+# Equivalent manual form (must export the RMW yourself, in EVERY terminal):
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ros2 launch drone_interception_sim interception.launch.py
-# health check (separate terminal):
+
+# health check (separate terminal — same RMW + domain):
 src/drone_interception_sim/scripts/check_sim.sh      # expect connected: true x2
 ```
 Single drone only (for RL high-level / quick checks):
 ```bash
 ros2 launch drone_interception_sim interceptor.launch.py
+```
+
+## Full pluggable pipeline (detection -> KF -> prediction -> planning -> MPC -> control)
+One launch brings up all six ported stages (each with a swappable backend) under
+a selectable orchestration head. The sim must already be running (run_sim.sh
+above); same RMW + domain. See ARCHITECTURE.md for the full design.
+```bash
+# FSM head (default): arms, AUTO.TAKEOFF, then OFFBOARD so the cascade pursues,
+# AUTO.RTL on capture. + benchmark:
+ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=fsm metrics:=true \
+    csv_path:=/tmp/pipeline.csv
+# swap any single stage's algorithm, nothing else changes:
+ros2 launch drone_interception_sim pipeline.launch.py predictor:=poly controller:=se3
+# other orchestration heads:
+ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=bt        # BT direct-drive (no MPC/control)
+ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=offboard  # arm+OFFBOARD only (pure cascade)
+ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=none      # cascade only, no arming
+
+# orchestrator: fsm | offboard | bt | none | (rl: future)
+# backends: detector=ground_truth|depth|yolo  estimator=const_vel|const_accel
+#           predictor=gru(default)|const_vel|const_accel|poly  planner=rendezvous|tail_chase|pn_lead|head_on
+#           mpc=passthrough|mpc_12state  controller=px4_setpoint|pn_velocity|se3
+ros2 topic echo /interceptor/mission/phase    # FSM head's current phase
+```
+Inspect any stage's output:
+```bash
+ros2 topic echo /interceptor/kf/good_tracks --once          # confirmed target estimate
+ros2 topic echo /interceptor/predicted_trajectory --once    # forecast
+ros2 topic echo /interceptor/intercept_point --once         # rendezvous (read by FSM/BT)
+ros2 topic echo /interceptor/command_trajectory --once      # MPC output
+ros2 topic hz   /interceptor/mavros/setpoint_raw/local      # control output to PX4
 ```
 
 ## 1. Strategy A — geometric rendezvous (intercept point/path)

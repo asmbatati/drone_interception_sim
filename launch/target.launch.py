@@ -26,6 +26,8 @@ DEFAULT_PX4_DIR = '/home/asmbatati/drone_interception_ws/PX4-Autopilot'
 DEFAULT_GZ_PARTITION = 'd2d_intercept'
 # Must match the interceptor's ROS_DOMAIN_ID so they share one ROS graph.
 DEFAULT_ROS_DOMAIN_ID = '77'
+# RMW is inherited from the shell (must match the interceptor); set it before
+# `ros2 launch` — see scripts/run_sim.sh. This launch does not touch it.
 
 # Target identity (see plan: spawn scheme table)
 NS = 'target'

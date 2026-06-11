@@ -37,33 +37,76 @@ DEFAULT_ROS_DOMAIN_ID = '77'
 
 
 def _kill_stale_sim(partition):
-    """Kill leftover px4/gz from a PREVIOUS run of THIS sim.
+    """Kill ALL leftovers from a PREVIOUS run of THIS sim before starting.
 
-    PX4 SITL holds a per-instance lock; a crashed/ctrl-c'd run can leave the
-    px4 daemon alive, so the next launch dies with 'PX4 server already running
-    for instance N'. We match only processes whose environment has this sim's
-    GZ_PARTITION, so other projects' PX4/gz are never touched.
+    Two kinds of leftovers accumulate across repeated (re)launches and must both
+    be cleared, or duplicate /clock bridges + multiple gz servers publish
+    conflicting sim time ("jump back in time") and the ROS graph fills with
+    stale mavros/TF nodes:
+      1. px4/gz AND ros_gz bridge (parameter_bridge/image_bridge, incl. the
+         /clock bridge) processes - matched by this sim's GZ_PARTITION (env
+         var), which they all inherit from the launch environment.
+      2. the sim's other ROS nodes (mavros, static TFs, tf_relay, markers,
+         target_trajectory, metrics) - matched by cmdline; these don't carry
+         GZ_PARTITION so they must be matched separately. The current launch has
+         not spawned any of these yet, so every match is genuinely stale.
+      3. prior `ros2 launch` processes of this sim - matched by cmdline, but the
+         CURRENT launch's own process group is excluded so we never kill self.
+
+    Other projects (different partition / namespaces) are never touched.
     """
     if not partition:
         return
+    try:
+        my_pgid = os.getpgid(0)
+    except OSError:
+        my_pgid = -1
+    # cmdline substrings unique to THIS sim's ROS nodes
+    node_pats = ('/interceptor/mavros', '/target/mavros',
+                 'gz_ns:=interceptor', 'gz_ns:=target',
+                 'map2global_tf_node', 'map2map_frd_tf_node',
+                 'map2px4_interceptor_tf_node', 'map2px4_target_tf_node',
+                 'odom2base_tf_relay', 'drone_interception_sim/lib',
+                 'interceptor_depthcam_bridge')
+    launch_pats = ('ros2 launch drone_interception_sim',
+                   'ros2 launch d2dtracker_states')
     killed = False
     for pid in os.listdir('/proc'):
         if not pid.isdigit():
             continue
+        ipid = int(pid)
         try:
             with open(f'/proc/{pid}/cmdline', 'rb') as f:
                 cmd = f.read().replace(b'\x00', b' ').decode('utf-8', 'ignore')
-            if 'bin/px4' not in cmd and 'gz sim' not in cmd:
+            if not cmd:
                 continue
-            with open(f'/proc/{pid}/environ', 'rb') as f:
-                env = f.read().decode('utf-8', 'ignore')
-            if f'GZ_PARTITION={partition}' in env:
-                os.kill(int(pid), signal.SIGKILL)
+            kill_it = False
+            # px4/gz AND the ros_gz bridges (parameter_bridge/image_bridge,
+            # incl. the /clock bridge): all inherit GZ_PARTITION from the launch
+            # env. Orphaned bridges accumulate across crashed runs and kill
+            # /clock delivery (0 live publishers -> every use_sim_time node
+            # freezes), so they must be swept by the same partition match.
+            if ('bin/px4' in cmd or 'gz sim' in cmd
+                    or 'parameter_bridge' in cmd or 'image_bridge' in cmd):
+                with open(f'/proc/{pid}/environ', 'rb') as f:
+                    env = f.read().decode('utf-8', 'ignore')
+                if f'GZ_PARTITION={partition}' in env:
+                    kill_it = True
+            if any(p in cmd for p in node_pats):
+                kill_it = True
+            if any(p in cmd for p in launch_pats):
+                try:
+                    if os.getpgid(ipid) != my_pgid:  # never kill our own group
+                        kill_it = True
+                except ProcessLookupError:
+                    pass
+            if kill_it:
+                os.kill(ipid, signal.SIGKILL)
                 killed = True
         except (FileNotFoundError, ProcessLookupError, PermissionError, ValueError):
             continue
     if killed:
-        time.sleep(2.0)   # let instance locks / UDP ports free up
+        time.sleep(2.0)   # let instance locks / UDP ports / DDS discovery settle
 
 
 # Interceptor identity (see plan: spawn scheme table)
@@ -130,9 +173,12 @@ def launch_setup(context, *args, **kwargs):
 
     actions = []
 
-    # RMW is inherited from the environment (whatever RMW_IMPLEMENTATION is
-    # exported), so all ROS nodes here already use it. Zenoh additionally needs
-    # its router daemon running for discovery, so start it if it isn't already.
+    # RMW is inherited from the shell — set it BEFORE `ros2 launch` (the launch
+    # cannot reliably override it for included Node actions like mavros without
+    # split-braining the sim; see the RMW note in interception.launch.py and
+    # scripts/run_sim.sh, which exports FastRTPS for reliable high-rate topics).
+    # We only read it here to start zenoh's router daemon, which it needs for
+    # discovery.
     rmw = os.environ.get('RMW_IMPLEMENTATION', '')
     if 'zenoh' in rmw:
         actions.append(ExecuteProcess(

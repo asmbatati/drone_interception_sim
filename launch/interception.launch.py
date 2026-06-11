@@ -22,6 +22,15 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 from launch_ros.substitutions import FindPackageShare
 
+# RMW NOTE: this launch deliberately does NOT set RMW_IMPLEMENTATION. ros2
+# launch's Node actions (mavros, gz bridge) inherit the *shell* environment the
+# `ros2 launch` process started with, which neither os.environ nor a
+# SetEnvironmentVariable action inside the launch can override — so forcing it
+# here would split-brain the sim (ExecuteProcess px4/gz on one RMW, Node mavros
+# on another). Set RMW_IMPLEMENTATION in the shell before launching; use
+# scripts/run_sim.sh, which exports FastRTPS (reliable high-rate /clock+odom)
+# uniformly. zenoh drops those high-rate topics on this setup.
+
 
 def generate_launch_description():
     headless = LaunchConfiguration('headless')

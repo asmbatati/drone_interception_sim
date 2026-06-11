@@ -1,0 +1,26 @@
+# vcstool manifest for the full interception workspace.
+#   mkdir -p ros2_ws/src && cd ros2_ws
+#   vcs import src < src/drone_interception_sim/interception.repos
+# (PX4-Autopilot is cloned separately beside ros2_ws; see DEMO.md / CLAUDE.md.)
+repositories:
+  # pluggable pipeline stages
+  interception_msgs:        {type: git, url: https://github.com/asmbatati/interception_msgs.git,        version: main}
+  interception_detection:   {type: git, url: https://github.com/asmbatati/interception_detection.git,   version: main}
+  interception_estimation:  {type: git, url: https://github.com/asmbatati/interception_estimation.git,  version: main}
+  interception_prediction:  {type: git, url: https://github.com/asmbatati/interception_prediction.git,  version: main}
+  interception_planning:    {type: git, url: https://github.com/asmbatati/interception_planning.git,    version: main}
+  interception_mpc:         {type: git, url: https://github.com/asmbatati/interception_mpc.git,         version: main}
+  interception_control:     {type: git, url: https://github.com/asmbatati/interception_control.git,     version: main}
+  osqp-eigen:               {type: git, url: https://github.com/asmbatati/osqp-eigen.git,               version: main}
+  # sim + methods
+  drone_interception_sim:   {type: git, url: https://github.com/asmbatati/drone_interception_sim.git,   version: main}
+  uavros2:                  {type: git, url: https://github.com/asmbatati/uavros2.git,                  version: main}
+  d2dtracker_interception:  {type: git, url: https://github.com/asmbatati/d2dtracker_interception.git,  version: main}
+  d2dtracker_states:        {type: git, url: https://github.com/asmbatati/d2dtracker_states.git,        version: main}
+  d2dtracker_rl:            {type: git, url: https://github.com/asmbatati/d2dtracker_rl.git,            version: main}
+  # vendored deps
+  mavros:                   {type: git, url: https://github.com/mzahana/mavros.git,                     version: feature/jazzy-tf2-eigen-fix}
+  mavlink:                  {type: git, url: https://github.com/ros2-gbp/mavlink-gbp-release.git,       version: bc5543fd574138d9e244a7f0600d7144fa537990}
+  yolov8_ros:               {type: git, url: https://github.com/mgonzs13/yolov8_ros.git,                version: bbd7cb90b7331656725df4b0bf87571645d56e6b}
+  smart_track:              {type: git, url: https://github.com/mzahana/smart_track.git,                version: main}
+  eigen_stl_containers:     {type: git, url: https://github.com/ros/eigen_stl_containers.git,           version: ros2}

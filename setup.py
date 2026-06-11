@@ -37,6 +37,9 @@ setup(
             'target_trajectory = drone_interception_sim.target_trajectory_node:main',
             'interception_metrics = drone_interception_sim.interception_metrics:main',
             'drone_markers = drone_interception_sim.drone_markers:main',
+            'offboard_manager = drone_interception_sim.offboard_manager:main',
+            'pipeline_fsm = drone_interception_sim.pipeline_fsm:main',
+            'pipeline_viz = drone_interception_sim.pipeline_viz:main',
         ],
     },
 )
