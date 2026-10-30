@@ -200,7 +200,10 @@ class Runner:
         self.sim = self._spawn(argv, f'sim_{scen}_{int(time.time())}.log')
         self.sim_scenario = scen
         self.watch.reset()
-        t_end = time.monotonic() + 180.0
+        # good starts are ready in ~20 s even under load; a start that is not
+        # ready by then has a stuck target and only wastes the wait
+        wait = float(self.cfg.get('sim_ready_timeout', 60.0))
+        t_end = time.monotonic() + wait
         while time.monotonic() < t_end:
             self.watch.spin(1.0)
             if self.watch.target_ok() and self.watch.connected('interceptor'):
@@ -208,7 +211,7 @@ class Runner:
                 self.watch.spin(5.0)
                 self.set_px4_params()
                 return True
-        log('sim did not become ready in 180 s')
+        log(f'sim did not become ready in {wait:g} s')
         return False
 
     def set_px4_params(self):

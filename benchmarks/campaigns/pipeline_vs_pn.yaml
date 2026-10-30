@@ -5,6 +5,7 @@ domain: 21                # ROS_DOMAIN_ID of the managed sim
 trials: 10                # per (method, scenario)
 seed: 1                   # phase-delay RNG
 timeout: 120              # metrics timeout, s (no capture -> 'timeout' row)
+sim_ready_timeout: 60     # s; good starts are ready in ~20 s, a stuck one is restarted
 phase_period: 15.7        # random start delay range, s (one target lap: 2*pi/0.4)
 px4_params:               # interceptor only, set once the sim is up
   RTL_RETURN_ALT: 8.0     # default 30 m: the climb dominated the time between trials
