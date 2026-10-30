@@ -71,7 +71,11 @@ def _kill_stale_sim(partition):
                  'map2global_tf_node', 'map2map_frd_tf_node',
                  'map2px4_interceptor_tf_node', 'map2px4_target_tf_node',
                  'odom2base_tf_relay', 'drone_interception_sim/lib',
-                 'interceptor_depthcam_bridge')
+                 'interceptor_depthcam_bridge',
+                 # controllers run against this sim (pipeline stages, heads)
+                 'interception_detection/lib', 'interception_estimation/lib', 'interception_prediction/lib',
+                 'interception_planning/lib', 'interception_mpc/lib', 'interception_control/lib',
+                 'd2dtracker_states/lib', 'd2dtracker_interception/lib', 'd2dtracker_rl/lib')
     launch_pats = ('ros2 launch drone_interception_sim',
                    'ros2 launch d2dtracker_states')
     killed = False

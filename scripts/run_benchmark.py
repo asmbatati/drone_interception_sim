@@ -347,6 +347,18 @@ class Runner:
         before = self._rows()
         procs = [self._spawn(c, f'{scen}__{slug}__t{trial:02d}_{i}.log')
                  for i, c in enumerate(cmds)]
+        try:
+            outcome = self._await_row(procs, before, m)
+        finally:   # also on Ctrl-C: orphaned stage nodes would pollute later trials
+            for p in procs:
+                self._stop(p)
+        if outcome is None:
+            self._append_error(name, scen, trial, 'error')
+            outcome = 'error (no metrics row)'
+        log(f'{scen} t{trial:02d} {name}: {outcome}')
+        return outcome.split()[0] not in RETRY_OUTCOMES
+
+    def _await_row(self, procs, before, m):
         t_end = time.monotonic() + self.timeout + float(m.get('extra_time', 60.0))
         outcome = None
         while time.monotonic() < t_end:
@@ -363,13 +375,7 @@ class Runner:
                 break
             if any(p.poll() is not None for p in procs[:1]):
                 break
-        for p in procs:
-            self._stop(p)
-        if outcome is None:
-            self._append_error(name, scen, trial, 'error')
-            outcome = 'error (no metrics row)'
-        log(f'{scen} t{trial:02d} {name}: {outcome}')
-        return outcome.split()[0] not in RETRY_OUTCOMES
+        return outcome
 
     def run(self, only_scenarios=None):
         trials = int(self.cfg.get('trials', 10))

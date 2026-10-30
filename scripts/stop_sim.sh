@@ -44,15 +44,18 @@ kill_matching "ros2 launch drone_interception_sim"
 kill_matching "ros2 launch d2dtracker_states"
 
 # all of THIS sim's ROS nodes (mavros, gz bridge, static TFs, tf_relay,
-# markers, target_trajectory, metrics), or they pile up across restarts and
-# publish duplicate/conflicting /clock and TF.
+# markers, target_trajectory, metrics) and of the controllers run against it
+# (pipeline stages, BT/FSM, guidance, RL head), or they pile up across restarts
+# and publish duplicate /clock, TF, tracks and predictions.
 for pat in \
   "__ns:=/interceptor/mavros" "__ns:=/target/mavros" \
   "gz_ns:=interceptor" "gz_ns:=target" \
   "map2global_tf_node" "map2map_frd_tf_node" \
   "map2px4_interceptor_tf_node" "map2px4_target_tf_node" \
   "odom2base_tf_relay" "drone_interception_sim/lib" \
-  "interceptor_depthcam_bridge"; do
+  "interceptor_depthcam_bridge" \
+  "interception_detection/lib" "interception_estimation/lib" "interception_prediction/lib" "interception_planning/lib" "interception_mpc/lib" \
+  "interception_control/lib" "d2dtracker_states/lib" "d2dtracker_interception/lib" "d2dtracker_rl/lib"; do
   kill_matching "$pat"
 done
 
