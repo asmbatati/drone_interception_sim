@@ -50,7 +50,7 @@ import yaml
 
 SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 #: outcomes that are infrastructure faults: excluded from results, re-run
-RETRY_OUTCOMES = ('no_liftoff', 'error', 'scene_error')
+RETRY_OUTCOMES = ('no_liftoff', 'error', 'scene_error', 'superseded')
 
 
 def log(msg):

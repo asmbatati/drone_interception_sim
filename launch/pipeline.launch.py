@@ -89,8 +89,10 @@ def generate_launch_description():
         condition=cascade_if)
     control = stage(
         'interception_control', 'control_node', 'control_node', 'backend', 'controller',
-        # '' keeps each backend's own default (se3 0.1 s, others 0.3 s)
-        params={'lookahead_time': PythonExpression([
+        # 'mass' is read by the se3 backend only. '' lookahead keeps each
+        # backend's own default (se3 0.1 s, others 0.3 s)
+        params={'mass': LaunchConfiguration('vehicle_mass'),
+                'lookahead_time': PythonExpression([
             "float('", LaunchConfiguration('control_lookahead'), "') if '",
             LaunchConfiguration('control_lookahead'), "' else (0.1 if '",
             LaunchConfiguration('controller'), "' == 'se3' else 0.3)"])},
@@ -211,6 +213,10 @@ def generate_launch_description():
         DeclareLaunchArgument('planner', default_value='rendezvous'),
         DeclareLaunchArgument('mpc', default_value='passthrough'),
         DeclareLaunchArgument('controller', default_value='px4_setpoint'),
+        DeclareLaunchArgument('vehicle_mass', default_value='2.466',
+                              description='interceptor mass for the se3 controller, kg '
+                                          '(x500_d435 incl. camera + gimbal per its SDF; '
+                                          'camera-less x500: 2.064)'),
         DeclareLaunchArgument('control_lookahead', default_value='',
                               description='s into the command trajectory the control '
                                           "stage tracks ('' = backend default: se3 0.1, "

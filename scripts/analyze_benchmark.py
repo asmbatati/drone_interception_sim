@@ -55,7 +55,7 @@ def short(method):
             .replace('+px4_setpoint', '').replace('mpc_12state', 'mpc'))
 
 
-INFRA = ['no_liftoff', 'error', 'scene_error']   # excluded from the statistics
+INFRA = ['no_liftoff', 'error', 'scene_error', 'superseded']   # excluded, re-run
 
 
 def summarize(df):
