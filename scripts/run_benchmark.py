@@ -213,11 +213,17 @@ class Runner:
 
     def set_px4_params(self):
         for name, value in (self.cfg.get('px4_params') or {}).items():
-            r = subprocess.run(
-                ['ros2', 'param', 'set', '/interceptor/mavros/param', name,
-                 str(value)], capture_output=True, text=True, timeout=30,
-                env=dict(os.environ, ROS_DOMAIN_ID=self.domain, RRV_SHIM_BYPASS='1'))
-            log(f'px4 param {name}={value}: {(r.stdout or r.stderr).strip()}')
+            for _ in range(5):   # the param node can lag discovery after a start
+                r = subprocess.run(
+                    ['ros2', 'param', 'set', '/interceptor/mavros/param', name,
+                     str(value)], capture_output=True, text=True, timeout=30,
+                    env=dict(os.environ, ROS_DOMAIN_ID=self.domain,
+                             RRV_SHIM_BYPASS='1'))
+                msg = (r.stdout or r.stderr).strip()
+                if 'successful' in msg:
+                    break
+                self.watch.spin(3.0)
+            log(f'px4 param {name}={value}: {msg}')
 
     def ensure_scene(self, scen):
         """Interceptor home + disarmed, target flying; restart the sim if not."""
