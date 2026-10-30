@@ -75,6 +75,10 @@ def generate_launch_description():
             'gz_partition': gz_partition,
             'ros_domain_id': ros_domain_id,
             'marker_mesh': LaunchConfiguration('marker_mesh'),
+            'target_trajectory': LaunchConfiguration('target_trajectory'),
+            'target_radius': LaunchConfiguration('target_radius'),
+            'target_omega': LaunchConfiguration('target_omega'),
+            'target_evade': LaunchConfiguration('target_evade'),
             'xpos': target_x, 'ypos': '0.0', 'zpos': '0.1',
         }.items())
 
@@ -100,6 +104,15 @@ def generate_launch_description():
                                           'simulators (esp. /clock). Match in all terminals.'),
         DeclareLaunchArgument('target_x', default_value='10.0',
                               description='Target spawn X offset from the interceptor'),
+        DeclareLaunchArgument('target_trajectory', default_value='',
+                              description="target path override: 'circle' | 'infty' "
+                                          "('' = config/target_trajectory.yaml)"),
+        DeclareLaunchArgument('target_radius', default_value='',
+                              description="target path radius override, m"),
+        DeclareLaunchArgument('target_omega', default_value='',
+                              description="target angular speed override, rad/s"),
+        DeclareLaunchArgument('target_evade', default_value='',
+                              description="target reactive evasion override: true|false"),
         DeclareLaunchArgument('software_gl', default_value='false',
                               description='true = CPU rendering for RViz/gz (broken GPU GL)'),
         DeclareLaunchArgument('gpu', default_value='true',

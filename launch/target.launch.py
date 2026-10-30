@@ -147,13 +147,24 @@ def launch_setup(context, *args, **kwargs):
         package='drone_interception_sim', executable='drone_markers',
         name='drone_markers', namespace=NS, parameters=mk_params, output='log'))
 
-    # Scripted autonomous target flight (evasion optional; see config)
+    # Scripted autonomous target flight (evasion optional; see config). Non-empty
+    # target_* launch args override the YAML, so benchmark campaigns can switch
+    # scenario without editing the config.
+    overrides = {'use_sim_time': True}
+    casts = {'trajectory_type': str, 'radius': float, 'omega': float,
+             'evade': lambda v: v.lower() in ('1', 'true', 'yes')}
+    for arg, key in (('target_trajectory', 'trajectory_type'),
+                     ('target_radius', 'radius'), ('target_omega', 'omega'),
+                     ('target_evade', 'evade')):
+        val = LaunchConfiguration(arg).perform(context)
+        if val:
+            overrides[key] = casts[key](val)
     actions.append(Node(
         package='drone_interception_sim', executable='target_trajectory',
         name='target_trajectory_node', namespace=NS,
         parameters=[
             os.path.join(pkg_share, 'config', 'target_trajectory.yaml'),
-            {'use_sim_time': True},
+            overrides,
         ],
         remappings=[('interceptor_odom', '/interceptor/mavros/local_position/odom')],
         output='screen'))
@@ -172,6 +183,14 @@ def generate_launch_description():
                               description='PX4-Autopilot dir (in-tree by default)'),
         DeclareLaunchArgument('gz_partition', default_value=DEFAULT_GZ_PARTITION,
                               description='Gazebo transport partition (must match interceptor)'),
+        DeclareLaunchArgument('target_trajectory', default_value='',
+                              description="override: 'circle' | 'infty' ('' = YAML)"),
+        DeclareLaunchArgument('target_radius', default_value='',
+                              description="override path radius, m ('' = YAML)"),
+        DeclareLaunchArgument('target_omega', default_value='',
+                              description="override angular speed, rad/s ('' = YAML)"),
+        DeclareLaunchArgument('target_evade', default_value='',
+                              description="override reactive evasion: true|false ('' = YAML)"),
         DeclareLaunchArgument('ros_domain_id', default_value=DEFAULT_ROS_DOMAIN_ID,
                               description='ROS_DOMAIN_ID (must match interceptor)'),
         DeclareLaunchArgument('marker_mesh', default_value='',

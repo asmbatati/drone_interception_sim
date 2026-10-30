@@ -9,7 +9,7 @@ with orchestrator:= :
      |                                          |
      |  orchestrator:=fsm|offboard|none  -> MPC -> control -> PX4   (cascade)
      |  orchestrator:=bt                 -> d2dtracker_states BT -> PX4 (direct)
-     |  orchestrator:=rl                 -> (future: d2dtracker_rl policy)
+     |  orchestrator:=rl                 -> d2dtracker_rl policy_head (rl_model:=...)
 
 Heads:
   fsm       pipeline_fsm sequences arm/AUTO.TAKEOFF/OFFBOARD/AUTO.RTL on top of
@@ -18,7 +18,8 @@ Heads:
   bt        the d2dtracker_states Behaviour Tree drives directly from the
             planner's intercept_point (MPC+control are NOT started).
   none      cascade runs but nothing arms/flies (topic inspection / RViz).
-  rl        reserved for a d2dtracker_rl policy head (not yet wired).
+  rl        d2dtracker_rl policy_head flies a trained SB3 policy directly
+            (velocity setpoints; MPC+control are NOT started). rl_model:=<zip>.
 
 Per-stage backends are still swappable: detector/estimator/predictor/planner/
 mpc/controller. Sim launched separately (scripts/run_sim.sh, FastRTPS); same
@@ -28,6 +29,8 @@ RMW + ROS_DOMAIN_ID in this terminal.
   ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=bt
   ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=offboard metrics:=true
   ros2 launch drone_interception_sim pipeline.launch.py predictor:=poly controller:=se3
+  ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=rl \
+      rl_model:=$HOME/drone_interception_ws/ros2_ws/src/d2dtracker_rl/checkpoints/intercept/model_evasive_40k.zip
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction
@@ -47,6 +50,7 @@ def generate_launch_description():
     fsm_if = IfCondition(PythonExpression(["'", orch, "' == 'fsm'"]))
     offboard_if = IfCondition(PythonExpression(["'", orch, "' == 'offboard'"]))
     bt_if = IfCondition(PythonExpression(["'", orch, "' == 'bt'"]))
+    rl_if = IfCondition(PythonExpression(["'", orch, "' == 'rl'"]))
 
     def stage(pkg, exe, name, backend_param, backend_arg, params=None, remaps=None,
               condition=None):
@@ -85,6 +89,11 @@ def generate_launch_description():
         condition=cascade_if)
     control = stage(
         'interception_control', 'control_node', 'control_node', 'backend', 'controller',
+        # '' keeps each backend's own default (se3 0.1 s, others 0.3 s)
+        params={'lookahead_time': PythonExpression([
+            "float('", LaunchConfiguration('control_lookahead'), "') if '",
+            LaunchConfiguration('control_lookahead'), "' else (0.1 if '",
+            LaunchConfiguration('controller'), "' == 'se3' else 0.3)"])},
         remaps=[('command_trajectory', '/interceptor/command_trajectory'),
                 ('interceptor_odom', '/interceptor/mavros/local_position/odom'),
                 ('setpoint_raw_local', '/interceptor/mavros/setpoint_raw/local'),
@@ -113,25 +122,44 @@ def generate_launch_description():
         name='offboard_manager', namespace=ns, output='screen',
         parameters=[{'use_sim_time': False}], condition=offboard_if)
 
+    # Same takeoff/attack/capture settings as the FSM head, so the two heads
+    # are compared on the same mission (the BT's standalone defaults are
+    # 5.0 m / 1.5 m / 0.6 m).
     bt = Node(
         package='d2dtracker_states', executable='bt_node',
         name='bt_node', namespace=ns, output='screen',
-        parameters=[{'use_sim_time': use_sim_time}],
+        parameters=[{'use_sim_time': use_sim_time,
+                     'takeoff_height': LaunchConfiguration('takeoff_alt'),
+                     'attack_distance': LaunchConfiguration('attack_distance'),
+                     'capture_radius': LaunchConfiguration('capture_radius')}],
         remappings=[('intercept_point', '/interceptor/intercept_point'),
                     ('target_detection', '/interceptor/detection_node/detections_poses'),
                     ('target_odom', '/target/mavros/local_position/odom')],
         condition=bt_if)
 
-    # Method string is self-labeling (the selected backends), so the summary
-    # table rows are directly comparable across benchmark runs.
+    # RL head: a d2dtracker_rl policy flies the interceptor directly (velocity
+    # setpoints, like the BT it bypasses MPC/control). Same metrics as the rest.
+    rl = Node(
+        package='d2dtracker_rl', executable='policy_head',
+        name='policy_head', namespace=ns, output='screen',
+        parameters=[{'use_sim_time': use_sim_time,
+                     'model': LaunchConfiguration('rl_model'),
+                     'capture_radius': LaunchConfiguration('capture_radius')}],
+        remappings=[('interceptor_odom', '/interceptor/mavros/local_position/odom'),
+                    ('target_odom', '/target/mavros/local_position/odom')],
+        condition=rl_if)
+
+    # Method string is self-labeling (the selected backends, see the 'method'
+    # argument default), so the summary rows are directly comparable across
+    # benchmark runs. scenario/trial label the row for batch campaigns.
     metrics = Node(
         package='drone_interception_sim', executable='interception_metrics',
         name='interception_metrics', namespace=ns, output='screen',
         parameters=[{'use_sim_time': use_sim_time,
-                     'method': ['pipeline/', LaunchConfiguration('planner'),
-                                '+', LaunchConfiguration('predictor'),
-                                '+', LaunchConfiguration('mpc'),
-                                '+', LaunchConfiguration('controller')],
+                     'method': LaunchConfiguration('method'),
+                     'capture_radius': LaunchConfiguration('capture_radius'),
+                     'scenario': LaunchConfiguration('scenario'),
+                     'trial': LaunchConfiguration('trial'),
                      'csv_path': LaunchConfiguration('csv_path'),
                      'summary_csv_path': LaunchConfiguration('summary_csv_path')}],
         remappings=[('interceptor_odom', '/interceptor/mavros/local_position/odom'),
@@ -169,7 +197,11 @@ def generate_launch_description():
         # duplicate bridges from hand-launching were what made /clock flaky.
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('orchestrator', default_value='fsm',
-                              description='fsm | offboard | bt | none | (rl: future)'),
+                              description='fsm | offboard | bt | rl | none'),
+        DeclareLaunchArgument('rl_model', default_value='',
+                              description='orchestrator:=rl: SB3 policy .zip '
+                                          '(e.g. d2dtracker_rl/checkpoints/intercept/'
+                                          'model_evasive_40k.zip)'),
         DeclareLaunchArgument('detector', default_value='ground_truth'),
         DeclareLaunchArgument('estimator', default_value='const_vel'),
         # gru = the OLD implementation's trained predictor (pos+vel GRUs,
@@ -179,6 +211,10 @@ def generate_launch_description():
         DeclareLaunchArgument('planner', default_value='rendezvous'),
         DeclareLaunchArgument('mpc', default_value='passthrough'),
         DeclareLaunchArgument('controller', default_value='px4_setpoint'),
+        DeclareLaunchArgument('control_lookahead', default_value='',
+                              description='s into the command trajectory the control '
+                                          "stage tracks ('' = backend default: se3 0.1, "
+                                          'px4_setpoint/pn_velocity 0.3)'),
         DeclareLaunchArgument('takeoff_alt', default_value='4.0'),
         DeclareLaunchArgument('attack_distance', default_value='3.0'),
         DeclareLaunchArgument('capture_radius', default_value='1.0'),
@@ -187,9 +223,19 @@ def generate_launch_description():
         DeclareLaunchArgument('summary_csv_path',
                               default_value='/tmp/interception_results.csv',
                               description='per-run summary table (appended)'),
+        DeclareLaunchArgument('method',
+                              default_value=['pipeline/', LaunchConfiguration('planner'),
+                                             '+', LaunchConfiguration('predictor'),
+                                             '+', LaunchConfiguration('mpc'),
+                                             '+', LaunchConfiguration('controller')],
+                              description='metrics label (default: the backends)'),
+        DeclareLaunchArgument('scenario', default_value='',
+                              description='metrics label for the target scenario'),
+        DeclareLaunchArgument('trial', default_value='-1',
+                              description='metrics label: trial index in a campaign'),
         DeclareLaunchArgument('viz', default_value='true',
                               description='publish the interception MarkerArray '
                                           '(shown in the sim RViz)'),
         GroupAction([detection, estimation, prediction, planning,
-                     mpc, control, fsm, offboard, bt, metrics, viz]),
+                     mpc, control, fsm, offboard, bt, rl, metrics, viz]),
     ])
