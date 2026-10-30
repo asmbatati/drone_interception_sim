@@ -238,7 +238,7 @@ class Runner:
             self.sim_scenario = None   # force a restart
         return False
 
-    def preflight_ok(self, instance=0, tries=3):
+    def preflight_ok(self, instance=0, tries=8):
         """PX4's preflight check on the interceptor instance (SITL client)."""
         exe = os.path.join(self.px4_dir, 'build', 'px4_sitl_default', 'bin',
                            'px4-commander')
