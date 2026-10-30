@@ -1,0 +1,83 @@
+From 08d09b14a9580f3b87cca41ba56fdf4857f1641a Mon Sep 17 00:00:00 2001
+From: asmbatati <asmalbatati@hotmail.com>
+Date: Wed, 3 Jun 2026 11:03:31 +0300
+Subject: [PATCH 1/2] Fix tf2_eigen include for Jazzy (.h -> .hpp)
+
+Jazzy ships only tf2_eigen/tf2_eigen.hpp; update the few files in this fork
+still including the removed .h header (uas_tf, local/global/home_position, imu).
+---
+ mavros/src/lib/uas_tf.cpp              | 2 +-
+ mavros/src/plugins/global_position.cpp | 2 +-
+ mavros/src/plugins/home_position.cpp   | 2 +-
+ mavros/src/plugins/imu.cpp             | 2 +-
+ mavros/src/plugins/local_position.cpp  | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mavros/src/lib/uas_tf.cpp b/mavros/src/lib/uas_tf.cpp
+index 0c8c74d3..365d3773 100644
+--- a/mavros/src/lib/uas_tf.cpp
++++ b/mavros/src/lib/uas_tf.cpp
+@@ -16,7 +16,7 @@
+ #include <vector>
+ 
+ #include "mavros/mavros_uas.hpp"
+-#include "tf2_eigen/tf2_eigen.h"
++#include "tf2_eigen/tf2_eigen.hpp"
+ 
+ using namespace mavros::uas;  // NOLINT
+ 
+diff --git a/mavros/src/plugins/global_position.cpp b/mavros/src/plugins/global_position.cpp
+index b06865c8..f13791c6 100644
+--- a/mavros/src/plugins/global_position.cpp
++++ b/mavros/src/plugins/global_position.cpp
+@@ -17,7 +17,7 @@
+  */
+ 
+ #include <angles/angles.h>
+-#include <tf2_eigen/tf2_eigen.h>
++#include <tf2_eigen/tf2_eigen.hpp>
+ 
+ #include <string>
+ #include <GeographicLib/Geocentric.hpp>     // NOLINT
+diff --git a/mavros/src/plugins/home_position.cpp b/mavros/src/plugins/home_position.cpp
+index 33f0e1b3..8928615c 100644
+--- a/mavros/src/plugins/home_position.cpp
++++ b/mavros/src/plugins/home_position.cpp
+@@ -16,7 +16,7 @@
+  * @{
+  */
+ 
+-#include <tf2_eigen/tf2_eigen.h>
++#include <tf2_eigen/tf2_eigen.hpp>
+ 
+ #include <memory>
+ 
+diff --git a/mavros/src/plugins/imu.cpp b/mavros/src/plugins/imu.cpp
+index d7105768..49e73df8 100644
+--- a/mavros/src/plugins/imu.cpp
++++ b/mavros/src/plugins/imu.cpp
+@@ -14,7 +14,7 @@
+  * @{
+  */
+ 
+-#include <tf2_eigen/tf2_eigen.h>
++#include <tf2_eigen/tf2_eigen.hpp>
+ 
+ #include <cmath>
+ #include <string>
+diff --git a/mavros/src/plugins/local_position.cpp b/mavros/src/plugins/local_position.cpp
+index 03d58fa5..78f5024c 100644
+--- a/mavros/src/plugins/local_position.cpp
++++ b/mavros/src/plugins/local_position.cpp
+@@ -16,7 +16,7 @@
+  * @{
+  */
+ 
+-#include <tf2_eigen/tf2_eigen.h>
++#include <tf2_eigen/tf2_eigen.hpp>
+ 
+ #include <string>
+ 
+-- 
+2.43.0
+

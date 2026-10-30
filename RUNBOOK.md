@@ -84,7 +84,7 @@ Inspect any stage's output:
 ```bash
 ros2 topic echo /interceptor/kf/good_tracks --once          # confirmed target estimate
 ros2 topic echo /interceptor/predicted_trajectory --once    # forecast
-ros2 topic echo /interceptor/intercept_point --once         # rendezvous (read by FSM/BT)
+ros2 topic echo /interceptor/intercept_point --once         # rendezvous (read by the BT head)
 ros2 topic echo /interceptor/command_trajectory --once      # MPC output
 ros2 topic hz   /interceptor/mavros/setpoint_raw/local      # control output to PX4
 ```

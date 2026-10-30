@@ -1,0 +1,45 @@
+From 723346c8de994d276a778be429674481134c69d3 Mon Sep 17 00:00:00 2001
+From: asmbatati <asmalbatati@hotmail.com>
+Date: Wed, 3 Jun 2026 12:57:19 +0300
+Subject: [PATCH 2/2] mavros_extras: link libyaml-cpp explicitly
+
+yaml_cpp_vendor did not propagate the link library on Jazzy, leaving
+YAML::BadConversion undefined at dlopen so every extras plugin failed to load.
+Link ${YAML_CPP_LIBRARIES} into both extras targets.
+---
+ mavros_extras/CMakeLists.txt | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/mavros_extras/CMakeLists.txt b/mavros_extras/CMakeLists.txt
+index 0c6675a7..b1937ba4 100644
+--- a/mavros_extras/CMakeLists.txt
++++ b/mavros_extras/CMakeLists.txt
+@@ -34,6 +34,9 @@ find_package(eigen3_cmake_module REQUIRED)
+ find_package(Eigen3 REQUIRED)
+ # find_package(yaml_cpp REQUIRED)
+ find_package(yaml_cpp_vendor REQUIRED)
++# yaml_cpp_vendor does not propagate the actual link library on Jazzy, leaving
++# YAML::BadConversion undefined at dlopen; link libyaml-cpp explicitly.
++find_package(yaml-cpp REQUIRED)
+ 
+ ## Find GeographicLib
+ # Append to CMAKE_MODULE_PATH since debian/ubuntu installs
+@@ -148,6 +151,7 @@ ament_target_dependencies(mavros_extras_plugins
+   Eigen3
+   yaml_cpp_vendor
+ )
++target_link_libraries(mavros_extras_plugins ${YAML_CPP_LIBRARIES})
+ pluginlib_export_plugin_description_file(mavros mavros_plugins.xml)
+ 
+ add_library(mavros_extras SHARED
+@@ -167,6 +171,7 @@ ament_target_dependencies(mavros_extras
+   yaml_cpp_vendor
+   urdf
+ )
++target_link_libraries(mavros_extras ${YAML_CPP_LIBRARIES})
+ rclcpp_components_register_node(mavros_extras PLUGIN "mavros::extras::ServoStatePublisher" EXECUTABLE servo_state_publisher)
+ 
+ install(TARGETS mavros_extras mavros_extras_plugins
+-- 
+2.43.0
+

@@ -139,7 +139,7 @@ the cascade by not starting MPC/control for that branch).
 | State machine | central, bespoke | reused as a *selectable head* (`fsm`/`bt`); `none`/`offboard`/`rl` also selectable |
 | MPC→control link | MPC `MultiDOFJointTrajectory` → offboard node | MPC `StateTrajectory` → `interception_control` |
 | Setpoint to PX4 | velocity `PositionTarget` | position `PositionTarget` (`px4_setpoint`); `se3`→`AttitudeTarget` |
-| Default predictor | GRU (trained weights) | `const_vel` (GRU ported, falls back without weights) |
+| Default predictor | GRU (trained weights) | `gru` (trained weights shipped in `interception_prediction/models/`; falls back to `const_vel` without torch/weights) |
 | Default controller | geometric/SE3 attitude | `px4_setpoint` (SE3 ported, unvalidated in flight) |
 | Messages | `custom_trajectory_msgs` + `multi_target_kf` | unified `interception_msgs` |
 | Transport | (Humble/zenoh era) | **FastRTPS** (zenoh drops high-rate `/clock`+odom here) |
@@ -238,9 +238,11 @@ ros2 topic hz   /interceptor/mavros/setpoint_raw/local
   to the target fine once airborne.
 - Two fixes that unlocked it: the **orchestration heads run on wall clock**
   (`use_sim_time:=False`) so their mission timer keeps ticking even when
-  FastRTPS's `/clock` delivery stalls (the whole pipeline now defaults to wall
-  clock for the same robustness); and the FSM **leaves `AUTO.RTL`/`AUTO.LAND`
-  before re-arming**.
+  FastRTPS's `/clock` delivery stalls; and the FSM **leaves `AUTO.RTL`/`AUTO.LAND`
+  before re-arming**. (Only the `fsm`/`offboard` heads and `pipeline_viz` run on
+  wall clock. The perception→control cascade, the metrics logger and the `bt`
+  and `rl` heads use `use_sim_time` = the launch's `use_sim_time`, default
+  `true`, so the KF/predictor time base matches the odometry stamps.)
 - **Per-stage outputs verified** along the way: `good_tracks` confirms; planning
   gives a reachable intercept; MPC gives a feasible trajectory; control emits
   valid setpoints; the FSM head arms + sequences modes + latches capture.
