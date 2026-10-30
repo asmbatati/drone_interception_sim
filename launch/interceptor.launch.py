@@ -47,13 +47,17 @@ def _kill_stale_sim(partition):
          /clock bridge) processes - matched by this sim's GZ_PARTITION (env
          var), which they all inherit from the launch environment.
       2. the sim's other ROS nodes (mavros, static TFs, tf_relay, markers,
-         target_trajectory, metrics) - matched by cmdline; these don't carry
-         GZ_PARTITION so they must be matched separately. The current launch has
-         not spawned any of these yet, so every match is genuinely stale.
-      3. prior `ros2 launch` processes of this sim - matched by cmdline, but the
-         CURRENT launch's own process group is excluded so we never kill self.
+         target_trajectory, metrics) - matched by cmdline AND this sim's
+         GZ_PARTITION, which every child inherits from the launch environment.
+         The current launch has not spawned any of these yet, so every match is
+         genuinely stale.
+      3. prior `ros2 launch` processes of this sim - matched by cmdline AND
+         partition, but the CURRENT launch's own process group is excluded so
+         we never kill self.
 
-    Other projects (different partition / namespaces) are never touched.
+    Every kill requires the GZ_PARTITION match: node names such as
+    map2global_tf_node are shared with uavros2, so a cmdline match alone would
+    kill another project's sim on a shared machine.
     """
     if not partition:
         return
@@ -86,15 +90,19 @@ def _kill_stale_sim(partition):
             # env. Orphaned bridges accumulate across crashed runs and kill
             # /clock delivery (0 live publishers -> every use_sim_time node
             # freezes), so they must be swept by the same partition match.
-            if ('bin/px4' in cmd or 'gz sim' in cmd
-                    or 'parameter_bridge' in cmd or 'image_bridge' in cmd):
-                with open(f'/proc/{pid}/environ', 'rb') as f:
-                    env = f.read().decode('utf-8', 'ignore')
-                if f'GZ_PARTITION={partition}' in env:
-                    kill_it = True
-            if any(p in cmd for p in node_pats):
+            sim_proc = ('bin/px4' in cmd or 'gz sim' in cmd
+                        or 'parameter_bridge' in cmd or 'image_bridge' in cmd)
+            node_proc = any(p in cmd for p in node_pats)
+            launch_proc = any(p in cmd for p in launch_pats)
+            if not (sim_proc or node_proc or launch_proc):
+                continue
+            with open(f'/proc/{pid}/environ', 'rb') as f:
+                env = f.read().split(b'\x00')
+            if f'GZ_PARTITION={partition}'.encode() not in env:
+                continue
+            if sim_proc or node_proc:
                 kill_it = True
-            if any(p in cmd for p in launch_pats):
+            if launch_proc:
                 try:
                     if os.getpgid(ipid) != my_pgid:  # never kill our own group
                         kill_it = True

@@ -25,14 +25,27 @@ for pid in $(pgrep -f "bin/px4|gz sim|parameter_bridge|image_bridge" 2>/dev/null
   fi
 done
 
+# kill_matching PATTERN: SIGKILL processes whose cmdline matches PATTERN AND
+# whose environment carries our GZ_PARTITION (every child of the launch inherits
+# it). The partition check matters on a shared machine: node names such as
+# map2global_tf_node are shared with uavros2, so a bare pkill -f would kill
+# another project's sim.
+kill_matching() {
+  for pid in $(pgrep -f "$1" 2>/dev/null); do
+    [ "$pid" = "$$" ] && continue
+    if tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "GZ_PARTITION=${PARTITION}"; then
+      kill -9 "$pid" 2>/dev/null && echo "  killed pid $pid ($1)"
+    fi
+  done
+}
+
 # prior launches first (so they can't respawn children mid-cleanup)
-pkill -9 -f "ros2 launch drone_interception_sim" 2>/dev/null
-pkill -9 -f "ros2 launch d2dtracker_states" 2>/dev/null
+kill_matching "ros2 launch drone_interception_sim"
+kill_matching "ros2 launch d2dtracker_states"
 
 # all of THIS sim's ROS nodes (mavros, gz bridge, static TFs, tf_relay,
-# markers, target_trajectory, metrics). These don't carry GZ_PARTITION, so they
-# must be matched by cmdline or they pile up across restarts and publish
-# duplicate/conflicting /clock and TF.
+# markers, target_trajectory, metrics), or they pile up across restarts and
+# publish duplicate/conflicting /clock and TF.
 for pat in \
   "__ns:=/interceptor/mavros" "__ns:=/target/mavros" \
   "gz_ns:=interceptor" "gz_ns:=target" \
@@ -40,7 +53,7 @@ for pat in \
   "map2px4_interceptor_tf_node" "map2px4_target_tf_node" \
   "odom2base_tf_relay" "drone_interception_sim/lib" \
   "interceptor_depthcam_bridge"; do
-  pkill -9 -f "$pat" 2>/dev/null
+  kill_matching "$pat"
 done
 
 sleep 1
