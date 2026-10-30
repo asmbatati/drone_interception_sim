@@ -15,16 +15,17 @@ instance with its own MAVROS stack:
 |---|---|---|
 | namespace | `interceptor` | `target` |
 | model | `x500_d435` | `x3_uav` |
-| PX4 autostart | `4020` | `4022` |
+| PX4 autostart | `4020` | `4021` |
 | instance (`px4 -i`) | `0` | `1` |
-| MAVROS `fcu_url` | `udp://:14541@127.0.0.1:14558` | `udp://:14542@127.0.0.1:14559` |
+| MAVROS `fcu_url` | `udp://:14540@127.0.0.1:14557` | `udp://:14541@127.0.0.1:14558` |
 | `tgt_system` | `1` | `2` |
 | spawn pose (ENU) | `0,0,0.1` | `10,0,0.1` |
 
 The target flies an autonomous scripted trajectory (circle / figure-8) and
 self-arms into OFFBOARD; the interceptor is left for the interception
-controllers (`d2dtracker_interception`, `d2dtracker_states` BT/FSM,
-`d2dtracker_rl`) to drive.
+controllers to drive: the pipeline heads in `pipeline.launch.py`
+(`orchestrator:=fsm|offboard|bt|rl|none`), the guidance node of
+`d2dtracker_interception` (PN / pure pursuit), or the `d2dtracker_states` BT/FSM.
 
 ## PX4 directory
 
@@ -33,24 +34,29 @@ The launches default `PX4_DIR` to the project's **in-tree** PX4
 your shell. Override per launch with `px4_dir:=/path/to/PX4-Autopilot`.
 
 That in-tree PX4 must be built (`make px4_sitl`) and provide the airframes used
-here: `4020_gz_x500_d435` (interceptor) and `4022_gz_x3_uav` (target), plus the
-`x500_d435` and `x3_uav` gz models. (Note: the in-tree PX4 numbers `x3_uav` as
-`4022`; a `uavros2`-provisioned PX4 uses `4021` — adjust `px4_autostart_id`
-if you point at a differently-provisioned tree.)
+here: `4020_gz_x500_d435` (interceptor) and `4021_gz_x3_uav` (target), plus the
+`x500_d435` and `x3_uav` gz models. `uavros2/install.sh` copies them in.
 
 ## Build & run
 
 ```bash
 cd ~/drone_interception_ws/ros2_ws
-colcon build --packages-select drone_interception_sim
+colcon build --symlink-install --packages-select drone_interception_sim
 source install/setup.bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp   # in every terminal (see scripts/run_sim.sh)
 
 # Rendered, with RViz (default)
 ros2 launch drone_interception_sim interception.launch.py
 
-# Headless, no RViz
-ros2 launch drone_interception_sim interception.launch.py headless:=1 use_rviz:=false
+# Headless, no RViz, own partition + ROS domain (shared machine)
+ros2 launch drone_interception_sim interception.launch.py headless:=1 use_rviz:=false \
+    gz_partition:=ihunter ros_domain_id:=21
+export ROS_DOMAIN_ID=21                      # every other terminal talking to this sim
 ```
+
+Target scenario overrides (else `config/target_trajectory.yaml`: 6 m circle at
+0.4 rad/s = 2.4 m/s, 4 m altitude, no evasion): `target_trajectory:=circle|infty`,
+`target_radius:=`, `target_omega:=`, `target_evade:=true`.
 
 You should see **one** Gazebo GUI with two drones. Verify both FCUs connect:
 
@@ -58,6 +64,34 @@ You should see **one** Gazebo GUI with two drones. Verify both FCUs connect:
 ros2 topic echo /interceptor/mavros/state --once
 ros2 topic echo /target/mavros/state --once     # connected: true
 ```
+
+## Interceptor controllers and benchmarking
+
+```bash
+ros2 launch drone_interception_sim pipeline.launch.py metrics:=true          # FSM head + cascade
+ros2 launch drone_interception_sim pipeline.launch.py controller:=se3        # geometric control
+ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=bt       # Behaviour Tree head
+ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=rl \
+    rl_model:=$HOME/drone_interception_ws/ros2_ws/src/d2dtracker_rl/checkpoints/intercept/model_evasive_40k.zip
+ros2 launch d2dtracker_interception guidance.launch.py law:=pn               # + metrics.launch.py
+```
+
+`interception_metrics` appends one row per run to `summary_csv_path`: outcome
+(`capture`, `miss` = back on the ground without a true capture, `timeout`),
+total time, time from liftoff to capture, closest approach, plus `scenario`
+and `trial` labels. It uses ground truth (both odometries), not the KF.
+
+A whole campaign runs unattended (starts/restarts the scene, interleaves the
+methods per trial, randomizes the target phase, brings the interceptor home
+between trials):
+
+```bash
+python3 scripts/run_benchmark.py benchmarks/campaigns/pipeline_vs_pn.yaml \
+    --out ~/drone_interception_ws/benchmarks_runs/<name>     # resumable
+python3 scripts/analyze_benchmark.py ~/drone_interception_ws/benchmarks_runs/<name>
+```
+
+Results and caveats: [`BENCHMARKS.md`](BENCHMARKS.md).
 
 ## Gazebo partition isolation
 
@@ -68,7 +102,11 @@ to whatever gz server is already up and the model spawn fails
 (`/world/interception/create` not found → `Service call timed out`).
 
 - Override or disable: `gz_partition:=my_part` (or `gz_partition:=` for the
-  default shared partition).
+  default shared partition). Likewise `ros_domain_id:=` (default 77) isolates
+  the ROS graph, `/clock` included.
+- On launch, and in `scripts/stop_sim.sh <partition>`, leftover px4/gz/bridge
+  and node processes of a previous run are killed, but only those whose
+  environment carries this partition, so another project's sim survives.
 - **External gz tools must match it**: `GZ_PARTITION=d2d_intercept gz topic -l`,
   `GZ_PARTITION=d2d_intercept gz sim -g` (GUI), etc.
 

@@ -55,9 +55,13 @@ def short(method):
             .replace('+px4_setpoint', '').replace('mpc_12state', 'mpc'))
 
 
+INFRA = ['no_liftoff', 'error', 'scene_error']   # excluded from the statistics
+
+
 def summarize(df):
     rows = []
-    for (scen, meth), g in df.groupby(['scenario', 'method'], sort=False):
+    for (scen, meth), g_all in df.groupby(['scenario', 'method'], sort=False):
+        g = g_all[~g_all.outcome.isin(INFRA)]
         n = len(g)
         cap = g[g.outcome == 'capture']
         k = len(cap)
@@ -68,7 +72,7 @@ def summarize(df):
         rows.append({
             'scenario': scen, 'method': meth, 'trials': n, 'captures': k,
             'capture_rate': p, 'ci_lo': lo, 'ci_hi': hi,
-            'errors': int(g.outcome.isin(['error', 'scene_error']).sum()),
+            'errors': int(g_all.outcome.isin(INFRA).sum()),
             't_engaged_median_s': te.median() if len(te) else np.nan,
             't_engaged_q1_s': te.quantile(0.25) if len(te) else np.nan,
             't_engaged_q3_s': te.quantile(0.75) if len(te) else np.nan,
@@ -89,7 +93,7 @@ def write_md(s, path):
               f'{r.t_engaged_median_s:.1f} [{r.t_engaged_q1_s:.1f}–'
               f'{r.t_engaged_q3_s:.1f}]')
         tt = '—' if np.isnan(r.t_total_median_s) else f'{r.t_total_median_s:.1f}'
-        err = f' ({r.errors} err)' if r.errors else ''
+        err = f' (+{r.errors} infra re-runs)' if r.errors else ''
         lines.append(
             f'| {r.scenario} | `{r.method}` | {r.captures}/{r.trials}{err} | '
             f'{r.capture_rate:.0%} ({r.ci_lo:.0%}–{r.ci_hi:.0%}) | {te} | {tt} | '
@@ -232,11 +236,13 @@ def main():
     p.add_argument('run', help='campaign output dir (holds results.csv)')
     a = p.parse_args()
     df = pd.read_csv(os.path.join(a.run, 'results.csv'))
+    n_infra = int(df.outcome.isin(INFRA).sum())
+    df_all, df = df, df[~df.outcome.isin(INFRA)]
     out = os.path.join(a.run, 'report')
     os.makedirs(out, exist_ok=True)
     methods = list(dict.fromkeys(df.method))
     scens = list(dict.fromkeys(df.scenario))
-    s = summarize(df)
+    s = summarize(df_all)
     s.to_csv(os.path.join(out, 'summary.csv'), index=False, float_format='%.3f')
     write_md(s, os.path.join(out, 'summary.md'))
     fig_capture(s, methods, scens, os.path.join(out, 'capture_rate.png'))
@@ -245,6 +251,7 @@ def main():
         fig_range(df, methods, scen, os.path.join(out, f'range_{scen}.png'))
         fig_xy(df, methods, scen, os.path.join(out, f'xy_{scen}.png'))
     print(open(os.path.join(out, 'summary.md')).read())
+    print(f'{len(df_all)} rows, {n_infra} infrastructure faults excluded')
     print(f'figures -> {out}')
 
 

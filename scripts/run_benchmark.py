@@ -11,6 +11,12 @@ described in a YAML file (see ``benchmarks/campaigns/*.yaml``):
 * before each trial the interceptor is brought home and disarmed (AUTO.RTL,
   then AUTO.LAND), the target is checked to be armed, in OFFBOARD and
   airborne, and the sim is restarted if either check fails;
+* PX4's own preflight check on the interceptor (``px4-commander check`` on
+  instance 0) must pass; an estimator fault left by a collision (seen: an EKF
+  magnetometer fault after a capture at 0.7 m) otherwise blocks arming for the
+  rest of the campaign. A trial whose interceptor never lifts off is recorded
+  as ``no_liftoff`` (an infrastructure fault, not a method result), the sim is
+  restarted and the trial is run again (up to ``max_retries``);
 * a seeded random delay of up to one target period randomizes the target's
   phase on its path when the engagement starts;
 * ``px4_params`` from the campaign (e.g. a low ``RTL_RETURN_ALT``, so the
@@ -43,6 +49,8 @@ import time
 import yaml
 
 SCRIPTS = os.path.dirname(os.path.abspath(__file__))
+#: outcomes that are infrastructure faults: excluded from results, re-run
+RETRY_OUTCOMES = ('no_liftoff', 'error', 'scene_error')
 
 
 def log(msg):
@@ -140,6 +148,9 @@ class Runner:
         os.makedirs(os.path.join(out, 'logs'), exist_ok=True)
         self.sim = None
         self.sim_scenario = None
+        self.px4_dir = os.path.expanduser(cfg.get(
+            'px4_dir', os.environ.get('PX4_DIR', '~/drone_interception_ws/PX4-Autopilot')))
+        self.max_retries = int(cfg.get('max_retries', 2))
         self.watch = None if dry_run else Watch()
 
     # --- process helpers -----------------------------------------------------
@@ -215,7 +226,8 @@ class Runner:
                                     or self.sim.poll() is not None):
                 if not self.start_sim(scen):
                     continue
-            if self._bring_home() and self.watch.target_ok():
+            home = self._bring_home()
+            if home and self.watch.target_ok() and self.preflight_ok():
                 return True
             log(f'scene unhealthy (attempt {attempt + 1}): '
                 f'interceptor_home={self.watch.interceptor_home()} '
@@ -224,6 +236,24 @@ class Runner:
                 self.watch.spin(10.0)
                 continue
             self.sim_scenario = None   # force a restart
+        return False
+
+    def preflight_ok(self, instance=0, tries=3):
+        """PX4's preflight check on the interceptor instance (SITL client)."""
+        exe = os.path.join(self.px4_dir, 'build', 'px4_sitl_default', 'bin',
+                           'px4-commander')
+        if not os.path.exists(exe):
+            return True
+        out = ''
+        for i in range(tries):
+            r = subprocess.run([exe, '--instance', str(instance), 'check'],
+                               capture_output=True, text=True, timeout=20,
+                               cwd=os.path.dirname(os.path.dirname(exe)))
+            out = (r.stdout + r.stderr).strip()
+            if 'Preflight check: OK' in out or 'FAILED' not in out:
+                return True
+            self.watch.spin(3.0)
+        log(f'interceptor preflight check failed: {out.splitlines()[-1] if out else "?"}')
         return False
 
     def _bring_home(self):
@@ -255,8 +285,17 @@ class Runner:
         if os.path.exists(self.results):
             with open(self.results) as f:
                 for row in csv.DictReader(f):
-                    done.add((row['method'], row['scenario'], row['trial']))
+                    if row['outcome'] not in RETRY_OUTCOMES:
+                        done.add((row['method'], row['scenario'], row['trial']))
         return done
+
+    def _mark_last(self, outcome):
+        """Rewrite the outcome of the last results row (infrastructure fault)."""
+        with open(self.results) as f:
+            rows = list(csv.reader(f))
+        rows[-1][1] = outcome
+        with open(self.results, 'w', newline='') as f:
+            csv.writer(f).writerows(rows)
 
     def _rows(self):
         if not os.path.exists(self.results):
@@ -309,6 +348,9 @@ class Runner:
             if self._rows() > before:
                 with open(self.results) as f:
                     last = list(csv.DictReader(f))[-1]
+                if not last.get('time_engaged_s') and last['outcome'] != 'capture':
+                    self._mark_last('no_liftoff')
+                    last['outcome'] = 'no_liftoff'
                 outcome = (f"{last['outcome']} t={last['time_to_intercept_s']}s "
                            f"engaged={last.get('time_engaged_s', '')}s "
                            f"min={last['min_range_m']}m")
@@ -321,6 +363,7 @@ class Runner:
             self._append_error(name, scen, trial, 'error')
             outcome = 'error (no metrics row)'
         log(f'{scen} t{trial:02d} {name}: {outcome}')
+        return outcome.split()[0] not in RETRY_OUTCOMES
 
     def run(self, only_scenarios=None):
         trials = int(self.cfg.get('trials', 10))
@@ -339,11 +382,15 @@ class Runner:
                         print(f'[{scen} t{trial}] {m["name"]}')
                         self.run_trial(m, scen, trial)
                         continue
-                    if not self.ensure_scene(scen):
-                        log('scene could not be made healthy; skipping trial')
-                        self._append_error(m['name'], scen, trial, 'scene_error')
-                        continue
-                    self.run_trial(m, scen, trial)
+                    for attempt in range(1 + self.max_retries):
+                        if not self.ensure_scene(scen):
+                            log('scene could not be made healthy; skipping trial')
+                            self._append_error(m['name'], scen, trial, 'scene_error')
+                            break
+                        if self.run_trial(m, scen, trial):
+                            break
+                        log('infrastructure fault: restarting the sim and retrying')
+                        self.sim_scenario = None   # force a restart
         if not self.dry_run:
             self._bring_home()
             if self.manage_sim:
