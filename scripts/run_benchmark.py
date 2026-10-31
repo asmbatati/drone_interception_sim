@@ -114,6 +114,15 @@ class Watch:
         return (self.connected('target') and st.armed and st.mode == 'OFFBOARD'
                 and self.alt('target') > 2.0)
 
+    def describe(self, ns):
+        st = self.state.get(ns)
+        if st is None or not st.connected:
+            return f'{ns}: FCU not connected'
+        if ns not in self.odom:
+            return f'{ns}: no odometry'
+        return (f'{ns}: armed={st.armed} mode={st.mode} '
+                f'alt={self.alt(ns):.1f} m')
+
     def interceptor_home(self):
         st = self.state.get('interceptor')
         return (self.connected('interceptor') and not st.armed
@@ -211,7 +220,8 @@ class Runner:
                 self.watch.spin(5.0)
                 self.set_px4_params()
                 return True
-        log(f'sim did not become ready in {wait:g} s')
+        log(f'sim did not become ready in {wait:g} s '
+            f'({self.watch.describe("target")})')
         return False
 
     def set_px4_params(self):
