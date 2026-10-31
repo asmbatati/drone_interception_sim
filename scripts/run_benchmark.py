@@ -62,7 +62,7 @@ class Watch:
 
     def __init__(self):
         import rclpy
-        from mavros_msgs.msg import State
+        from mavros_msgs.msg import State, StatusText
         from mavros_msgs.srv import CommandBool, SetMode
         from nav_msgs.msg import Odometry
         from rclpy.qos import qos_profile_sensor_data
@@ -71,7 +71,12 @@ class Watch:
         self.node = rclpy.create_node('benchmark_runner')
         self.state = {}
         self.odom = {}
+        self.texts = {}   # last PX4 status texts per vehicle (arming-denied reasons)
         for ns in ('interceptor', 'target'):
+            self.node.create_subscription(
+                StatusText, f'/{ns}/mavros/statustext/recv',
+                lambda m, ns=ns: self.texts.setdefault(ns, []).append(m.text),
+                qos_profile_sensor_data)   # mavros publishes it best-effort
             self.node.create_subscription(
                 State, f'/{ns}/mavros/state',
                 lambda m, ns=ns: self.state.__setitem__(ns, m), 10)
@@ -93,6 +98,7 @@ class Watch:
     def reset(self):
         self.state.clear()
         self.odom.clear()
+        self.texts.clear()
 
     def connected(self, ns):
         st = self.state.get(ns)
@@ -120,8 +126,9 @@ class Watch:
             return f'{ns}: FCU not connected'
         if ns not in self.odom:
             return f'{ns}: no odometry'
+        last = ' | '.join(dict.fromkeys(self.texts.get(ns, [])[-6:]))
         return (f'{ns}: armed={st.armed} mode={st.mode} '
-                f'alt={self.alt(ns):.1f} m')
+                f'alt={self.alt(ns):.1f} m; PX4: {last or "-"}')
 
     def interceptor_home(self):
         st = self.state.get('interceptor')
