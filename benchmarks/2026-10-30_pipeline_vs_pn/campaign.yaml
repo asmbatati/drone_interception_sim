@@ -1,0 +1,82 @@
+partition: ihunter
+domain: 21
+trials: 10
+seed: 1
+timeout: 120
+sim_ready_timeout: 60
+phase_period: 15.7
+px4_params:
+  RTL_RETURN_ALT: 8.0
+  RTL_DESCEND_ALT: 4.0
+sim_args:
+  headless: 1
+  use_rviz: 'false'
+scenarios:
+  circle: {}
+  evade:
+    target_evade: 'true'
+methods:
+- name: pipeline/rendezvous+gru+passthrough+px4_setpoint
+  launch:
+  - drone_interception_sim
+  - pipeline.launch.py
+  - orchestrator: fsm
+    planner: rendezvous
+    predictor: gru
+    viz: 'false'
+  metrics_in_launch: true
+- name: pipeline/rendezvous+const_vel+passthrough+px4_setpoint
+  launch:
+  - drone_interception_sim
+  - pipeline.launch.py
+  - orchestrator: fsm
+    planner: rendezvous
+    predictor: const_vel
+    viz: 'false'
+  metrics_in_launch: true
+- name: pipeline/tail_chase+gru+passthrough+px4_setpoint
+  launch:
+  - drone_interception_sim
+  - pipeline.launch.py
+  - orchestrator: fsm
+    planner: tail_chase
+    predictor: gru
+    viz: 'false'
+  metrics_in_launch: true
+- name: pipeline/rendezvous+gru+passthrough+se3
+  launch:
+  - drone_interception_sim
+  - pipeline.launch.py
+  - orchestrator: fsm
+    planner: rendezvous
+    predictor: gru
+    controller: se3
+    viz: 'false'
+  metrics_in_launch: true
+- name: bt/rendezvous+gru
+  launch:
+  - drone_interception_sim
+  - pipeline.launch.py
+  - orchestrator: bt
+    planner: rendezvous
+    predictor: gru
+    viz: 'false'
+  metrics_in_launch: true
+- name: pn
+  launch:
+  - d2dtracker_interception
+  - guidance.launch.py
+  - law: pn
+- name: pursuit
+  launch:
+  - d2dtracker_interception
+  - guidance.launch.py
+  - law: pursuit
+- name: rl/model_evasive_40k
+  launch:
+  - drone_interception_sim
+  - pipeline.launch.py
+  - orchestrator: rl
+    viz: 'false'
+    rl_model: ~/drone_interception_ws/ros2_ws/src/d2dtracker_rl/checkpoints/intercept/model_evasive_40k.zip
+  metrics_in_launch: true

@@ -243,6 +243,9 @@ def main():
     p.add_argument('run', help='campaign output dir (holds results.csv)')
     a = p.parse_args()
     df = pd.read_csv(os.path.join(a.run, 'results.csv'))
+    # traces may be stored relative to the run dir (a copied/committed run)
+    df['trace_csv'] = [p if not isinstance(p, str) or os.path.isabs(p)
+                       else os.path.join(a.run, p) for p in df.trace_csv]
     n_infra = int(df.outcome.isin(INFRA).sum())
     df_all, df = df, df[~df.outcome.isin(INFRA)]
     out = os.path.join(a.run, 'report')
