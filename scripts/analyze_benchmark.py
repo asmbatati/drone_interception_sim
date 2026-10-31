@@ -114,7 +114,8 @@ def fig_capture(s, methods, scens, path):
             ax.bar(i, r.capture_rate, width=0.6, color=SERIES[i % len(SERIES)],
                    edgecolor='white', linewidth=2)
             ax.errorbar(i, r.capture_rate,
-                        yerr=[[r.capture_rate - r.ci_lo], [r.ci_hi - r.capture_rate]],
+                        yerr=[[max(0.0, r.capture_rate - r.ci_lo)],
+                              [max(0.0, r.ci_hi - r.capture_rate)]],
                         color=INK2, capsize=3, linewidth=1)
             ax.text(i, min(r.ci_hi, 1.0) + 0.03, f'{r.captures}/{r.trials}',
                     ha='center', fontsize=7, color=INK)
@@ -205,11 +206,15 @@ def fig_xy(df, methods, scen, path):
                              squeeze=False)
     for i, m in enumerate(methods):
         ax = axes[i // cols][i % cols]
-        g = df[(df.scenario == scen) & (df.method == m) & (df.outcome == 'capture')]
-        tr = None
+        g = df[(df.scenario == scen) & (df.method == m)]
+        # first capture; with none, the trial that came closest (labelled)
+        g = pd.concat([g[g.outcome == 'capture'],
+                       g[g.outcome != 'capture'].sort_values('min_range_m')])
+        tr, outcome = None, ''
         for r in g.itertuples():
             tr = _trace(r.trace_csv, liftoff=-1e9)
             if tr is not None:
+                outcome = r.outcome
                 break
         if tr is not None:
             ax.plot(tr.tx, tr.ty, color=INK2, linewidth=1.2, label='target')
@@ -219,7 +224,9 @@ def fig_xy(df, methods, scen, path):
                        color=INK, zorder=4)
             ax.legend(fontsize=6, frameon=False, loc='lower left')
         ax.set_aspect('equal', adjustable='datalim')
-        ax.set_title(short(m), fontsize=8, color=INK)
+        ax.set_title(short(m) + ('' if outcome in ('', 'capture')
+                                 else f' ({outcome}, closest)'),
+                     fontsize=8, color=INK)
         style(ax)
         ax.grid(color=GRID, linewidth=0.6)
     for j in range(n, rows * cols):
