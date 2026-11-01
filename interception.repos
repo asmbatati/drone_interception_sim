@@ -19,7 +19,7 @@ repositories:
   shaheen_states:   {type: git, url: https://github.com/asmbatati/shaheen_states.git, version: main}
   shaheen_rl:       {type: git, url: https://github.com/asmbatati/shaheen_rl.git, version: main}
   # vendored deps
-  mavros:                   {type: git, url: https://github.com/mzahana/mavros.git,                     version: feature/jazzy-tf2-eigen-fix}
+  mavros:                   {type: git, url: https://github.com/asmbatati/mavros.git,                  version: jazzy-build-fixes}
   mavlink:                  {type: git, url: https://github.com/ros2-gbp/mavlink-gbp-release.git,       version: bc5543fd574138d9e244a7f0600d7144fa537990}
   yolov8_ros:               {type: git, url: https://github.com/mgonzs13/yolov8_ros.git,                version: bbd7cb90b7331656725df4b0bf87571645d56e6b}
   smart_track:              {type: git, url: https://github.com/mzahana/smart_track.git,                version: main}
