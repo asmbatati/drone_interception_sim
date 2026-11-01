@@ -89,15 +89,18 @@ def generate_launch_description():
         condition=cascade_if)
     control = stage(
         'interception_control', 'control_node', 'control_node', 'backend', 'controller',
-        # 'mass' is read by the se3 backend only. '' lookahead keeps each
-        # backend's own default (se3 0.1 s, others 0.3 s)
+        # 'mass' is read by the se3 backend only. '' lookahead: se3 0.1 s;
+        # 1.0 s behind mpc_12state, whose plan starts at the current pose, so
+        # a position setpoint must lead the drone by about 1 / MPC_XY_P (0.95)
+        # to hold the plan's speed (0.3 s hovers); others 0.3 s
         params={'mass': LaunchConfiguration('vehicle_mass'),
                 'hover_thrust': LaunchConfiguration('hover_thrust'),
                 'max_accel': LaunchConfiguration('max_accel'),
                 'lookahead_time': PythonExpression([
             "float('", LaunchConfiguration('control_lookahead'), "') if '",
             LaunchConfiguration('control_lookahead'), "' else (0.1 if '",
-            LaunchConfiguration('controller'), "' == 'se3' else 0.3)"])},
+            LaunchConfiguration('controller'), "' == 'se3' else (1.0 if '",
+            LaunchConfiguration('mpc'), "' == 'mpc_12state' else 0.3))"])},
         remaps=[('command_trajectory', '/interceptor/command_trajectory'),
                 ('interceptor_odom', '/interceptor/mavros/local_position/odom'),
                 ('setpoint_raw_local', '/interceptor/mavros/setpoint_raw/local'),
@@ -228,8 +231,8 @@ def generate_launch_description():
                                           'tops out near 12.4 at full thrust)'),
         DeclareLaunchArgument('control_lookahead', default_value='',
                               description='s into the command trajectory the control '
-                                          "stage tracks ('' = backend default: se3 0.1, "
-                                          'px4_setpoint/pn_velocity 0.3)'),
+                                          "stage tracks ('' = se3 0.1; 1.0 after "
+                                          'mpc_12state; px4_setpoint/pn_velocity 0.3)'),
         DeclareLaunchArgument('takeoff_alt', default_value='4.0'),
         DeclareLaunchArgument('attack_distance', default_value='3.0'),
         DeclareLaunchArgument('capture_radius', default_value='1.0'),

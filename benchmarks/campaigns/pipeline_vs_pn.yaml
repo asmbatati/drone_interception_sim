@@ -30,6 +30,11 @@ methods:
     launch: [drone_interception_sim, pipeline.launch.py,
              {orchestrator: fsm, planner: tail_chase, predictor: gru, viz: 'false'}]
     metrics_in_launch: true
+  - name: pipeline/rendezvous+gru+mpc_12state+px4_setpoint
+    launch: [drone_interception_sim, pipeline.launch.py,
+             {orchestrator: fsm, planner: rendezvous, predictor: gru, mpc: mpc_12state,
+              viz: 'false'}]                    # control_lookahead defaults to 1.0 s here
+    metrics_in_launch: true
   - name: pipeline/rendezvous+gru+passthrough+se3
     launch: [drone_interception_sim, pipeline.launch.py,
              {orchestrator: fsm, planner: rendezvous, predictor: gru, controller: se3,
@@ -53,5 +58,3 @@ methods:
              {orchestrator: rl, viz: 'false',
               rl_model: ~/drone_interception_ws/ros2_ws/src/d2dtracker_rl/checkpoints/intercept/model_evasive_40k.zip}]
     metrics_in_launch: true
-# mpc_12state is left out: in SITL it trails the target (best 2.7 m with
-# control_lookahead 1.0, hovers with the default 0.3 s); see ROADMAP B5.
