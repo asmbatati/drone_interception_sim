@@ -72,6 +72,11 @@ methods:
   - d2dtracker_interception
   - guidance.launch.py
   - law: pursuit
+- name: pn_int
+  launch:
+  - d2dtracker_interception
+  - guidance.launch.py
+  - law: pn_int
 - name: rl/model_evasive_40k
   launch:
   - drone_interception_sim

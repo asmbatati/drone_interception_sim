@@ -45,6 +45,8 @@ methods:
     launch: [d2dtracker_interception, guidance.launch.py, {law: pn}]
   - name: pursuit
     launch: [d2dtracker_interception, guidance.launch.py, {law: pursuit}]
+  - name: pn_int
+    launch: [d2dtracker_interception, guidance.launch.py, {law: pn_int}]   # textbook PN, 6 m/s
   # RL: the curriculum's evasive-stage SAC policy, trained in AeroGym at 0.5 m/s
   - name: rl/model_evasive_40k
     launch: [drone_interception_sim, pipeline.launch.py,
