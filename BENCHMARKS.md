@@ -44,11 +44,11 @@ It replaces the June 2026 single-run table (kept at the end for history).
 | `pipeline/tail_chase+gru+passthrough+px4_setpoint` | same, tail-chase planner |
 | `pipeline/rendezvous+gru+mpc_12state+px4_setpoint` | same, with the 12-state jerk-limited OSQP MPC (`interception_mpc` `mpc_12state`) between planner and controller; PX4 tracks the plan's 1.0 s sample |
 | `pipeline/rendezvous+gru+passthrough+se3` | same, geometric SE(3) controller (attitude + thrust) instead of PX4 position control; thrust scaled by PX4's hover thrust (0.79), acceleration limit 12 m/s² applied vertical-first |
-| `bt/rendezvous+gru` | Behaviour-Tree head (`d2dtracker_states` `bt_node`, climbs in OFFBOARD) on the rendezvous + GRU reference |
-| `pn` | `d2dtracker_interception` guidance, June PN law (N = 3, fixed 6 m/s closing, correction added to the measured velocity) |
+| `bt/rendezvous+gru` | Behaviour-Tree head (`shaheen_states` `bt_node`, climbs in OFFBOARD) on the rendezvous + GRU reference |
+| `pn` | `shaheen_guidance` guidance, June PN law (N = 3, fixed 6 m/s closing, correction added to the measured velocity) |
 | `pursuit` | same node, pure pursuit at 6 m/s |
 | `pn_int` | same node, textbook constant-speed PN (N = 3) integrated on the commanded velocity at 6 m/s (`law:=pn_int`) |
-| `rl/model_evasive_40k` | `d2dtracker_rl` `policy_head`: the evasive-stage SAC policy (trained in AeroGym against a 0.5 m/s target), velocity commands up to 8 m/s |
+| `rl/model_evasive_40k` | `shaheen_rl` `policy_head`: the evasive-stage SAC policy (trained in AeroGym against a 0.5 m/s target), velocity commands up to 8 m/s |
 
 ## Results
 
@@ -109,7 +109,7 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
   9.9 s, pursuit 9.6 s) and with the tightest spread. Its 3 misses passed just
   outside the capture sphere (1.02–1.83 m) and came back down. In AeroGym the
   same law overshoots out of the 60 m arena against faster, straight-fleeing
-  targets (`d2dtracker_rl/RESULTS.md`, C4); here the target circles and the
+  targets (`shaheen_rl/RESULTS.md`, C4); here the target circles and the
   scene has no arena limit.
 - **The June PN law fails** (5/20). With correct velocities it settles into an
   orbit around the circling target: closest approach is 1.6 m on the circle and

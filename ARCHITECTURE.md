@@ -21,7 +21,7 @@ with the state machine sitting in the middle as the orchestrator**:
 camera ─▶ drone_detector ─▶ multi_target_kf ─▶ drone_path_predictor (GRU)
                                                         │ predicted path
                                                         ▼
-        arm/mode services ◀── [ d2dtracker_states FSM ] ──▶ desired waypoint Path
+        arm/mode services ◀── [ shaheen_states FSM ] ──▶ desired waypoint Path
         (AUTO.TAKEOFF→OFFBOARD                                   │
          →AUTO.RTL→AUTO.LAND)                                    ▼
                                           trajectory_generation (12-state MPC)
@@ -44,7 +44,7 @@ Key logic:
 - Final command to PX4 is a **velocity `PositionTarget`** (an offboard-control
   node extracts the MPC trajectory's velocity + `yaw=atan2(vy,vx)`).
 
-### State-machine repo (`d2dtracker_states`)
+### State-machine repo (`shaheen_states`)
 Two interchangeable mission controllers over the same MAVROS interface:
 - **FSM** (`ros_node.py`, `state_machine` entry) — the 8-state machine above
   (ported ~verbatim into the current workspace).
@@ -52,7 +52,7 @@ Two interchangeable mission controllers over the same MAVROS interface:
   `PostCapture(Captured?→RTL) ▸ Attack(Airborne?+WithinAttackDistance?→Attack) ▸
   Pursue(Airborne?+TargetDetected?→Pursue) ▸ TakeoffSearch(EnsureOffboardArmed→
   Takeoff→Search)`. Its bridge reads `intercept_point` (from
-  `d2dtracker_interception`) + detections + odom and **streams PositionTarget
+  `shaheen_guidance`) + detections + odom and **streams PositionTarget
   setpoints directly** to `setpoint_raw/local` — it is orchestrator *and*
   controller (no MPC/control cascade).
 
@@ -92,7 +92,7 @@ Topic wiring (interceptor namespace):
 → reference + intercept_point → command_trajectory → mavros/setpoint_raw/local`.
 
 Backends reuse the original pure-math where possible: planning imports
-`d2dtracker_interception` (`find_optimal_intersection`, `pn_velocity_command`,
+`shaheen_guidance` (`find_optimal_intersection`, `pn_velocity_command`,
 `reference_trajectory`); the MPC and SE3 controller are verbatim C++ ports of
 `trajectory_generation` / `mav_controllers_ros`.
 
@@ -113,9 +113,9 @@ The head is selected with `pipeline.launch.py orchestrator:=`:
 |---|---|---|
 | `fsm` *(default)* | `pipeline_fsm` (Idle→Arm→Takeoff `AUTO.TAKEOFF`→Pursue `OFFBOARD`→Attack→Return `AUTO.RTL`) **+ MPC→control cascade** | the cascade's control stage |
 | `offboard` | `offboard_manager` (arm+OFFBOARD only) **+ cascade** | the cascade |
-| `bt` | `d2dtracker_states` Behaviour Tree (MPC+control **not** started) | the BT (direct setpoints from `intercept_point`) |
+| `bt` | `shaheen_states` Behaviour Tree (MPC+control **not** started) | the BT (direct setpoints from `intercept_point`) |
 | `none` | cascade only, nothing arms/flies | — (topic inspection / RViz) |
-| `rl` | reserved for a `d2dtracker_rl` policy head | (future) |
+| `rl` | reserved for a `shaheen_rl` policy head | (future) |
 
 `pipeline_fsm` (`drone_interception_sim/pipeline_fsm.py`) is the FSM head wired
 onto the cascade: it transitions on altitude / target detection
@@ -268,7 +268,7 @@ ros2 topic hz   /interceptor/mavros/setpoint_raw/local
   signal). `se3` (19/20) and `mpc_12state` (18/20, with the 1.0 s control
   lookahead the pipeline sets for it) are flight-validated (BENCHMARKS.md);
   `pn_velocity` is built but unvalidated in flight.
-  `rl` orchestrator is a reserved slot (would wrap a `d2dtracker_rl` policy).
+  `rl` orchestrator is a reserved slot (would wrap a `shaheen_rl` policy).
 - **Operational note:** launch the pipeline only via `pipeline.launch.py` (single
   entry); hand-launching individual stages across runs leaves orphan nodes
   (duplicate predictors/planners publishing to the same topics) that corrupt the

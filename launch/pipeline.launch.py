@@ -8,17 +8,17 @@ with orchestrator:= :
   detection -> estimation -> prediction -> planning ->        (always)
      |                                          |
      |  orchestrator:=fsm|offboard|none  -> MPC -> control -> PX4   (cascade)
-     |  orchestrator:=bt                 -> d2dtracker_states BT -> PX4 (direct)
-     |  orchestrator:=rl                 -> d2dtracker_rl policy_head (rl_model:=...)
+     |  orchestrator:=bt                 -> shaheen_states BT -> PX4 (direct)
+     |  orchestrator:=rl                 -> shaheen_rl policy_head (rl_model:=...)
 
 Heads:
   fsm       pipeline_fsm sequences arm/AUTO.TAKEOFF/OFFBOARD/AUTO.RTL on top of
             the cascade (the control stage streams the OFFBOARD setpoints). [default]
   offboard  minimal arm+OFFBOARD only (no phases) on top of the cascade.
-  bt        the d2dtracker_states Behaviour Tree drives directly from the
+  bt        the shaheen_states Behaviour Tree drives directly from the
             planner's intercept_point (MPC+control are NOT started).
   none      cascade runs but nothing arms/flies (topic inspection / RViz).
-  rl        d2dtracker_rl policy_head flies a trained SB3 policy directly
+  rl        shaheen_rl policy_head flies a trained SB3 policy directly
             (velocity setpoints; MPC+control are NOT started). rl_model:=<zip>.
 
 Per-stage backends are still swappable: detector/estimator/predictor/planner/
@@ -30,7 +30,7 @@ RMW + ROS_DOMAIN_ID in this terminal.
   ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=offboard metrics:=true
   ros2 launch drone_interception_sim pipeline.launch.py predictor:=poly controller:=se3
   ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=rl \
-      rl_model:=$HOME/drone_interception_ws/ros2_ws/src/d2dtracker_rl/checkpoints/intercept/model_evasive_40k.zip
+      rl_model:=$HOME/drone_interception_ws/ros2_ws/src/shaheen_rl/checkpoints/intercept/model_evasive_40k.zip
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction
@@ -133,7 +133,7 @@ def generate_launch_description():
     # are compared on the same mission (the BT's standalone defaults are
     # 5.0 m / 1.5 m / 0.6 m).
     bt = Node(
-        package='d2dtracker_states', executable='bt_node',
+        package='shaheen_states', executable='bt_node',
         name='bt_node', namespace=ns, output='screen',
         parameters=[{'use_sim_time': use_sim_time,
                      'takeoff_height': LaunchConfiguration('takeoff_alt'),
@@ -144,10 +144,10 @@ def generate_launch_description():
                     ('target_odom', '/target/mavros/local_position/odom')],
         condition=bt_if)
 
-    # RL head: a d2dtracker_rl policy flies the interceptor directly (velocity
+    # RL head: a shaheen_rl policy flies the interceptor directly (velocity
     # setpoints, like the BT it bypasses MPC/control). Same metrics as the rest.
     rl = Node(
-        package='d2dtracker_rl', executable='policy_head',
+        package='shaheen_rl', executable='policy_head',
         name='policy_head', namespace=ns, output='screen',
         parameters=[{'use_sim_time': use_sim_time,
                      'model': LaunchConfiguration('rl_model'),
@@ -207,7 +207,7 @@ def generate_launch_description():
                               description='fsm | offboard | bt | rl | none'),
         DeclareLaunchArgument('rl_model', default_value='',
                               description='orchestrator:=rl: SB3 policy .zip '
-                                          '(e.g. d2dtracker_rl/checkpoints/intercept/'
+                                          '(e.g. shaheen_rl/checkpoints/intercept/'
                                           'model_evasive_40k.zip)'),
         DeclareLaunchArgument('detector', default_value='ground_truth'),
         DeclareLaunchArgument('estimator', default_value='const_vel'),

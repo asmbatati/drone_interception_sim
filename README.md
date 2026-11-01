@@ -25,7 +25,7 @@ The target flies an autonomous scripted trajectory (circle / figure-8) and
 self-arms into OFFBOARD; the interceptor is left for the interception
 controllers to drive: the pipeline heads in `pipeline.launch.py`
 (`orchestrator:=fsm|offboard|bt|rl|none`), the guidance node of
-`d2dtracker_interception` (PN / pure pursuit), or the `d2dtracker_states` BT/FSM.
+`shaheen_guidance` (PN / pure pursuit), or the `shaheen_states` BT/FSM.
 
 ## PX4 directory
 
@@ -72,8 +72,8 @@ ros2 launch drone_interception_sim pipeline.launch.py metrics:=true          # F
 ros2 launch drone_interception_sim pipeline.launch.py controller:=se3        # geometric control
 ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=bt       # Behaviour Tree head
 ros2 launch drone_interception_sim pipeline.launch.py orchestrator:=rl \
-    rl_model:=$HOME/drone_interception_ws/ros2_ws/src/d2dtracker_rl/checkpoints/intercept/model_evasive_40k.zip
-ros2 launch d2dtracker_interception guidance.launch.py law:=pn               # + metrics.launch.py
+    rl_model:=$HOME/drone_interception_ws/ros2_ws/src/shaheen_rl/checkpoints/intercept/model_evasive_40k.zip
+ros2 launch shaheen_guidance guidance.launch.py law:=pn               # + metrics.launch.py
 ```
 
 `interception_metrics` appends one row per run to `summary_csv_path`: outcome

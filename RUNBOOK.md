@@ -91,30 +91,30 @@ ros2 topic hz   /interceptor/mavros/setpoint_raw/local      # control output to 
 
 ## 1. Strategy A — geometric rendezvous (intercept point/path)
 ```bash
-ros2 launch d2dtracker_interception interceptor.launch.py     # publishes intercept_point + path
+ros2 launch shaheen_guidance interceptor.launch.py     # publishes intercept_point + path
 ```
 
 ## 2. Strategy B — Proportional Navigation (flies the interceptor)
 ```bash
-ros2 launch d2dtracker_interception guidance.launch.py        # PN controller
+ros2 launch shaheen_guidance guidance.launch.py        # PN controller
 ```
 
 ## 3. Behaviour Tree mission (Search -> Pursue -> Attack -> Return)
 ```bash
-ros2 launch d2dtracker_states behavior_tree.launch.py
+ros2 launch shaheen_states behavior_tree.launch.py
 ```
-(FSM variant: `ros2 launch d2dtracker_states state_machine.launch.py`)
+(FSM variant: `ros2 launch shaheen_states state_machine.launch.py`)
 
 ## 4. Reinforcement Learning
 ```bash
 # sim already up; train stage 1 (PPO, high-level)
-ros2 launch d2dtracker_rl train_high_level.launch.py
+ros2 launch shaheen_rl train_high_level.launch.py
 tensorboard --logdir runs/
 # full curriculum (static -> constant-velocity -> evasive -> low-level SAC):
-ros2 run d2dtracker_rl curriculum --config \
-  $(ros2 pkg prefix d2dtracker_rl)/share/d2dtracker_rl/config/curriculum.yaml
+ros2 run shaheen_rl curriculum --config \
+  $(ros2 pkg prefix shaheen_rl)/share/shaheen_rl/config/curriculum.yaml
 # evaluate a trained policy:
-ros2 launch d2dtracker_rl evaluate.launch.py stage:=high \
+ros2 launch shaheen_rl evaluate.launch.py stage:=high \
   model:=checkpoints/high/final_model.zip
 ```
 

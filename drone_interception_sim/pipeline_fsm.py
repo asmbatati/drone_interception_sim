@@ -5,7 +5,7 @@ This is the phase-sequencing "brain" that sits on top of the
 detection->estimation->prediction->planning->MPC->control cascade. It does NOT
 compute or stream setpoints itself (the control stage does that, continuously);
 it only manages arming + PX4 flight mode + the mission phase, exactly the role
-the old d2dtracker_states FSM played in the original framework:
+the old shaheen_states FSM played in the original framework:
 
     Idle -> Arm -> Takeoff(AUTO.TAKEOFF) -> Pursue(OFFBOARD) -> Attack(OFFBOARD)
          -> Return(AUTO.RTL) -> Done

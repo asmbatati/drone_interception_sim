@@ -75,9 +75,9 @@ def _kill_stale_sim(partition):
                  # controllers run against this sim (pipeline stages, heads)
                  'interception_detection/lib', 'interception_estimation/lib', 'interception_prediction/lib',
                  'interception_planning/lib', 'interception_mpc/lib', 'interception_control/lib',
-                 'd2dtracker_states/lib', 'd2dtracker_interception/lib', 'd2dtracker_rl/lib')
+                 'shaheen_states/lib', 'shaheen_guidance/lib', 'shaheen_rl/lib')
     launch_pats = ('ros2 launch drone_interception_sim',
-                   'ros2 launch d2dtracker_states')
+                   'ros2 launch shaheen_states')
     killed = False
     for pid in os.listdir('/proc'):
         if not pid.isdigit():

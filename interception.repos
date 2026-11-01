@@ -15,9 +15,9 @@ repositories:
   # sim + methods
   drone_interception_sim:   {type: git, url: https://github.com/asmbatati/drone_interception_sim.git,   version: main}
   uavros2:                  {type: git, url: https://github.com/asmbatati/uavros2.git,                  version: main}
-  d2dtracker_interception:  {type: git, url: https://github.com/asmbatati/d2dtracker_interception.git,  version: main}
-  d2dtracker_states:        {type: git, url: https://github.com/asmbatati/d2dtracker_states.git,        version: main}
-  d2dtracker_rl:            {type: git, url: https://github.com/asmbatati/d2dtracker_rl.git,            version: main}
+  shaheen_guidance: {type: git, url: https://github.com/asmbatati/shaheen_guidance.git, version: main}
+  shaheen_states:   {type: git, url: https://github.com/asmbatati/shaheen_states.git, version: main}
+  shaheen_rl:       {type: git, url: https://github.com/asmbatati/shaheen_rl.git, version: main}
   # vendored deps
   mavros:                   {type: git, url: https://github.com/mzahana/mavros.git,                     version: feature/jazzy-tf2-eigen-fix}
   mavlink:                  {type: git, url: https://github.com/ros2-gbp/mavlink-gbp-release.git,       version: bc5543fd574138d9e244a7f0600d7144fa537990}

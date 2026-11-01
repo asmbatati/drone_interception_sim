@@ -74,17 +74,17 @@ methods:
   metrics_in_launch: true
 - name: pn
   launch:
-  - d2dtracker_interception
+  - shaheen_guidance
   - guidance.launch.py
   - law: pn
 - name: pursuit
   launch:
-  - d2dtracker_interception
+  - shaheen_guidance
   - guidance.launch.py
   - law: pursuit
 - name: pn_int
   launch:
-  - d2dtracker_interception
+  - shaheen_guidance
   - guidance.launch.py
   - law: pn_int
 - name: rl/model_evasive_40k
@@ -93,5 +93,5 @@ methods:
   - pipeline.launch.py
   - orchestrator: rl
     viz: 'false'
-    rl_model: ~/drone_interception_ws/ros2_ws/src/d2dtracker_rl/checkpoints/intercept/model_evasive_40k.zip
+    rl_model: ~/drone_interception_ws/ros2_ws/src/shaheen_rl/checkpoints/intercept/model_evasive_40k.zip
   metrics_in_launch: true

@@ -40,21 +40,21 @@ methods:
              {orchestrator: fsm, planner: rendezvous, predictor: gru, controller: se3,
               viz: 'false'}]
     metrics_in_launch: true
-  # Behaviour Tree head (d2dtracker_states) flying from the planner's intercept point
+  # Behaviour Tree head (shaheen_states) flying from the planner's intercept point
   - name: bt/rendezvous+gru
     launch: [drone_interception_sim, pipeline.launch.py,
              {orchestrator: bt, planner: rendezvous, predictor: gru, viz: 'false'}]
     metrics_in_launch: true
-  # Guidance-law baselines (d2dtracker_interception guidance node)
+  # Guidance-law baselines (shaheen_guidance guidance node)
   - name: pn
-    launch: [d2dtracker_interception, guidance.launch.py, {law: pn}]
+    launch: [shaheen_guidance, guidance.launch.py, {law: pn}]
   - name: pursuit
-    launch: [d2dtracker_interception, guidance.launch.py, {law: pursuit}]
+    launch: [shaheen_guidance, guidance.launch.py, {law: pursuit}]
   - name: pn_int
-    launch: [d2dtracker_interception, guidance.launch.py, {law: pn_int}]   # textbook PN, 6 m/s
+    launch: [shaheen_guidance, guidance.launch.py, {law: pn_int}]   # textbook PN, 6 m/s
   # RL: the curriculum's evasive-stage SAC policy, trained in AeroGym at 0.5 m/s
   - name: rl/model_evasive_40k
     launch: [drone_interception_sim, pipeline.launch.py,
              {orchestrator: rl, viz: 'false',
-              rl_model: ~/drone_interception_ws/ros2_ws/src/d2dtracker_rl/checkpoints/intercept/model_evasive_40k.zip}]
+              rl_model: ~/drone_interception_ws/ros2_ws/src/shaheen_rl/checkpoints/intercept/model_evasive_40k.zip}]
     metrics_in_launch: true
