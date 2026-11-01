@@ -11,7 +11,7 @@ bt/rendezvous+gru,scene_error,,,,,,circle,0
 pursuit,capture,20.28,0.974,1.0,traces/circle__pursuit__t00.csv,12.90,circle,0
 rl/model_evasive_40k,miss,10.60,18.475,1.0,traces/circle__rl_model_evasive_40k__t00.csv,5.20,circle,0
 pipeline/rendezvous+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,1
-pipeline/rendezvous+gru+passthrough+se3,capture,32.60,0.969,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t00.csv,26.40,circle,0
+pipeline/rendezvous+gru+passthrough+se3,superseded,32.60,0.969,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t00.csv,26.40,circle,0
 bt/rendezvous+gru,scene_error,,,,,,circle,0
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,13.30,0.999,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t01.csv,9.20,circle,1
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,14.60,0.970,1.0,traces/circle__pipeline_rendezvous-const_vel-passthrough-px4_setpoint__t01.csv,10.50,circle,1
@@ -33,7 +33,7 @@ rl/model_evasive_40k,miss,14.40,10.930,1.0,traces/circle__rl_model_evasive_40k__
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,12.30,0.989,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t03.csv,8.90,circle,3
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,16.00,0.952,1.0,traces/circle__pipeline_rendezvous-const_vel-passthrough-px4_setpoint__t03.csv,9.30,circle,3
 pipeline/tail_chase+gru+passthrough+px4_setpoint,capture,26.30,0.996,1.0,traces/circle__pipeline_tail_chase-gru-passthrough-px4_setpoint__t03.csv,19.30,circle,3
-pipeline/rendezvous+gru+passthrough+se3,capture,19.00,0.991,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t03.csv,13.20,circle,3
+pipeline/rendezvous+gru+passthrough+se3,superseded,19.00,0.991,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t03.csv,13.20,circle,3
 bt/rendezvous+gru,scene_error,,,,,,circle,3
 pn,capture,21.00,0.738,1.0,traces/circle__pn__t03.csv,15.10,circle,3
 pursuit,capture,20.90,0.988,1.0,traces/circle__pursuit__t03.csv,14.00,circle,3
@@ -41,7 +41,7 @@ rl/model_evasive_40k,timeout,120.02,4.576,1.0,traces/circle__rl_model_evasive_40
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,14.50,0.952,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t04.csv,8.40,circle,4
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,14.40,0.936,1.0,traces/circle__pipeline_rendezvous-const_vel-passthrough-px4_setpoint__t04.csv,9.50,circle,4
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,4
-pipeline/rendezvous+gru+passthrough+se3,capture,19.70,0.990,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t04.csv,15.50,circle,4
+pipeline/rendezvous+gru+passthrough+se3,superseded,19.70,0.990,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t04.csv,15.50,circle,4
 bt/rendezvous+gru,capture,7.10,0.961,1.0,traces/circle__bt_rendezvous-gru__t04.csv,4.60,circle,4
 pn,scene_error,,,,,,circle,4
 pursuit,capture,19.60,0.941,1.0,traces/circle__pursuit__t04.csv,12.80,circle,4
@@ -49,7 +49,7 @@ rl/model_evasive_40k,scene_error,,,,,,circle,4
 pipeline/rendezvous+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,5
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,scene_error,,,,,,circle,5
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,5
-pipeline/rendezvous+gru+passthrough+se3,capture,38.50,0.995,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t05.csv,33.90,circle,5
+pipeline/rendezvous+gru+passthrough+se3,superseded,38.50,0.995,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t05.csv,33.90,circle,5
 bt/rendezvous+gru,capture,5.40,0.991,1.0,traces/circle__bt_rendezvous-gru__t05.csv,3.70,circle,5
 pn,timeout,120.00,1.757,1.0,traces/circle__pn__t05.csv,113.30,circle,5
 pursuit,capture,17.30,0.809,1.0,traces/circle__pursuit__t05.csv,10.30,circle,5
@@ -57,7 +57,7 @@ rl/model_evasive_40k,timeout,120.00,3.150,1.0,traces/circle__rl_model_evasive_40
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,17.20,0.978,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t06.csv,10.70,circle,6
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,scene_error,,,,,,circle,6
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,6
-pipeline/rendezvous+gru+passthrough+se3,capture,25.60,0.957,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t06.csv,16.70,circle,6
+pipeline/rendezvous+gru+passthrough+se3,superseded,25.60,0.957,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t06.csv,16.70,circle,6
 bt/rendezvous+gru,capture,11.70,0.992,1.0,traces/circle__bt_rendezvous-gru__t06.csv,9.70,circle,6
 pn,capture,17.00,0.943,1.0,traces/circle__pn__t06.csv,11.70,circle,6
 pursuit,scene_error,,,,,,circle,6
@@ -65,7 +65,7 @@ rl/model_evasive_40k,capture,37.50,0.929,1.0,traces/circle__rl_model_evasive_40k
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,12.89,0.886,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t07.csv,8.10,circle,7
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,15.20,0.639,1.0,traces/circle__pipeline_rendezvous-const_vel-passthrough-px4_setpoint__t07.csv,8.90,circle,7
 pipeline/tail_chase+gru+passthrough+px4_setpoint,capture,14.90,0.935,1.0,traces/circle__pipeline_tail_chase-gru-passthrough-px4_setpoint__t07.csv,8.20,circle,7
-pipeline/rendezvous+gru+passthrough+se3,miss,67.00,2.131,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t07.csv,59.60,circle,7
+pipeline/rendezvous+gru+passthrough+se3,superseded,67.00,2.131,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t07.csv,59.60,circle,7
 bt/rendezvous+gru,capture,8.71,0.900,1.0,traces/circle__bt_rendezvous-gru__t07.csv,4.60,circle,7
 pn,timeout,120.00,2.136,1.0,traces/circle__pn__t07.csv,114.10,circle,7
 pursuit,scene_error,,,,,,circle,7
@@ -81,7 +81,7 @@ rl/model_evasive_40k,timeout,120.00,2.176,1.0,traces/circle__rl_model_evasive_40
 pipeline/rendezvous+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,9
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,16.00,0.961,1.0,traces/circle__pipeline_rendezvous-const_vel-passthrough-px4_setpoint__t09.csv,9.30,circle,9
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,9
-pipeline/rendezvous+gru+passthrough+se3,miss,27.80,2.135,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t09.csv,21.40,circle,9
+pipeline/rendezvous+gru+passthrough+se3,superseded,27.80,2.135,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t09.csv,21.40,circle,9
 bt/rendezvous+gru,scene_error,,,,,,circle,9
 pn,scene_error,,,,,,circle,9
 pursuit,capture,13.90,0.750,1.0,traces/circle__pursuit__t09.csv,6.30,circle,9
@@ -89,7 +89,7 @@ rl/model_evasive_40k,capture,31.40,0.939,1.0,traces/circle__rl_model_evasive_40k
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,17.20,0.991,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-px4_setpoint__t00.csv,11.00,evade,0
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,scene_error,,,,,,evade,0
 pipeline/tail_chase+gru+passthrough+px4_setpoint,miss,36.03,1.124,1.0,traces/evade__pipeline_tail_chase-gru-passthrough-px4_setpoint__t00.csv,31.30,evade,0
-pipeline/rendezvous+gru+passthrough+se3,miss,46.73,1.085,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t00.csv,41.10,evade,0
+pipeline/rendezvous+gru+passthrough+se3,superseded,46.73,1.085,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t00.csv,41.10,evade,0
 bt/rendezvous+gru,scene_error,,,,,,evade,0
 pn,timeout,120.00,3.365,1.0,traces/evade__pn__t00.csv,115.20,evade,0
 pursuit,scene_error,,,,,,evade,0
@@ -97,7 +97,7 @@ rl/model_evasive_40k,miss,35.00,2.350,1.0,traces/evade__rl_model_evasive_40k__t0
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,68.38,0.987,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-px4_setpoint__t01.csv,59.00,evade,1
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,18.14,0.867,1.0,traces/evade__pipeline_rendezvous-const_vel-passthrough-px4_setpoint__t01.csv,10.30,evade,1
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,1
-pipeline/rendezvous+gru+passthrough+se3,miss,22.40,4.128,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t01.csv,17.90,evade,1
+pipeline/rendezvous+gru+passthrough+se3,superseded,22.40,4.128,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t01.csv,17.90,evade,1
 bt/rendezvous+gru,capture,17.40,0.955,1.0,traces/evade__bt_rendezvous-gru__t01.csv,13.30,evade,1
 pn,capture,22.30,0.951,1.0,traces/evade__pn__t01.csv,13.50,evade,1
 pursuit,scene_error,,,,,,evade,1
@@ -105,7 +105,7 @@ rl/model_evasive_40k,miss,35.60,4.704,1.0,traces/evade__rl_model_evasive_40k__t0
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,28.90,0.993,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-px4_setpoint__t02.csv,24.30,evade,2
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,scene_error,,,,,,evade,2
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,2
-pipeline/rendezvous+gru+passthrough+se3,miss,47.78,3.861,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t02.csv,44.10,evade,2
+pipeline/rendezvous+gru+passthrough+se3,superseded,47.78,3.861,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t02.csv,44.10,evade,2
 bt/rendezvous+gru,capture,22.80,0.966,1.0,traces/evade__bt_rendezvous-gru__t02.csv,18.70,evade,2
 pn,scene_error,,,,,,evade,2
 pursuit,capture,23.70,0.801,1.0,traces/evade__pursuit__t02.csv,17.30,evade,2
@@ -130,7 +130,7 @@ rl/model_evasive_40k,miss,95.10,2.434,1.0,traces/evade__rl_model_evasive_40k__t0
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,48.80,0.967,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-px4_setpoint__t05.csv,42.60,evade,5
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,scene_error,,,,,,evade,5
 pipeline/tail_chase+gru+passthrough+px4_setpoint,miss,47.70,1.040,1.0,traces/evade__pipeline_tail_chase-gru-passthrough-px4_setpoint__t05.csv,41.60,evade,5
-pipeline/rendezvous+gru+passthrough+se3,miss,37.90,3.396,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t05.csv,31.10,evade,5
+pipeline/rendezvous+gru+passthrough+se3,superseded,37.90,3.396,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t05.csv,31.10,evade,5
 bt/rendezvous+gru,capture,14.60,0.995,1.0,traces/evade__bt_rendezvous-gru__t05.csv,13.10,evade,5
 pn,scene_error,,,,,,evade,5
 pursuit,scene_error,,,,,,evade,5
@@ -146,7 +146,7 @@ rl/model_evasive_40k,timeout,120.00,1.699,1.0,traces/evade__rl_model_evasive_40k
 pipeline/rendezvous+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,7
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,scene_error,,,,,,evade,7
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,7
-pipeline/rendezvous+gru+passthrough+se3,miss,44.10,3.221,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t07.csv,37.20,evade,7
+pipeline/rendezvous+gru+passthrough+se3,superseded,44.10,3.221,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t07.csv,37.20,evade,7
 bt/rendezvous+gru,scene_error,,,,,,evade,7
 pn,timeout,120.00,3.571,1.0,traces/evade__pn__t07.csv,113.00,evade,7
 pursuit,scene_error,,,,,,evade,7
@@ -158,7 +158,7 @@ pn,scene_error,,,,,,circle,1
 pursuit,capture,15.10,0.809,1.0,traces/circle__pursuit__t01.csv,8.60,circle,1
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,17.20,0.989,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t02.csv,10.10,circle,2
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,2
-pipeline/rendezvous+gru+passthrough+se3,miss,82.50,1.726,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t02.csv,75.90,circle,2
+pipeline/rendezvous+gru+passthrough+se3,superseded,82.50,1.726,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t02.csv,75.90,circle,2
 pn,scene_error,,,,,,circle,2
 pursuit,capture,15.10,0.832,1.0,traces/circle__pursuit__t02.csv,10.80,circle,2
 bt/rendezvous+gru,scene_error,,,,,,circle,3
@@ -173,7 +173,7 @@ pipeline/tail_chase+gru+passthrough+px4_setpoint,capture,14.34,0.982,1.0,traces/
 pursuit,scene_error,,,,,,circle,6
 pursuit,scene_error,,,,,,circle,7
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,8
-pipeline/rendezvous+gru+passthrough+se3,miss,51.40,4.217,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t08.csv,44.90,circle,8
+pipeline/rendezvous+gru+passthrough+se3,superseded,51.40,4.217,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t08.csv,44.90,circle,8
 pursuit,scene_error,,,,,,circle,8
 pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,19.20,0.968,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t09.csv,12.50,circle,9
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,9
@@ -217,12 +217,12 @@ rl/model_evasive_40k,scene_error,,,,,,evade,8
 pipeline/rendezvous+gru+passthrough+px4_setpoint,miss,51.27,1.065,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-px4_setpoint__t09.csv,45.00,evade,9
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,scene_error,,,,,,evade,9
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,9
-pipeline/rendezvous+gru+passthrough+se3,miss,43.60,3.328,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t09.csv,38.20,evade,9
+pipeline/rendezvous+gru+passthrough+se3,superseded,43.60,3.328,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t09.csv,38.20,evade,9
 bt/rendezvous+gru,scene_error,,,,,,evade,9
 pn,timeout,120.00,1.730,1.0,traces/evade__pn__t09.csv,114.30,evade,9
 pursuit,capture,12.50,0.860,1.0,traces/evade__pursuit__t09.csv,7.70,evade,9
 rl/model_evasive_40k,scene_error,,,,,,evade,9
-pipeline/rendezvous+gru+passthrough+se3,capture,13.60,0.971,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t01.csv,8.60,circle,1
+pipeline/rendezvous+gru+passthrough+se3,superseded,13.60,0.971,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t01.csv,8.60,circle,1
 pn,scene_error,,,,,,circle,1
 pipeline/tail_chase+gru+passthrough+px4_setpoint,capture,26.13,0.999,1.0,traces/circle__pipeline_tail_chase-gru-passthrough-px4_setpoint__t02.csv,19.90,circle,2
 pn,scene_error,,,,,,circle,2
@@ -239,7 +239,7 @@ bt/rendezvous+gru,capture,8.10,0.922,1.0,traces/evade__bt_rendezvous-gru__t00.cs
 pursuit,capture,16.10,0.964,1.0,traces/evade__pursuit__t01.csv,8.00,evade,1
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,19.30,0.973,1.0,traces/evade__pipeline_rendezvous-const_vel-passthrough-px4_setpoint__t03.csv,13.30,evade,3
 pipeline/rendezvous+gru+passthrough+se3,scene_error,,,,,,evade,3
-pipeline/rendezvous+gru+passthrough+se3,miss,21.90,2.688,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t04.csv,17.90,evade,4
+pipeline/rendezvous+gru+passthrough+se3,superseded,21.90,2.688,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t04.csv,17.90,evade,4
 pn,timeout,120.00,2.723,1.0,traces/evade__pn__t05.csv,115.10,evade,5
 pipeline/rendezvous+gru+passthrough+se3,scene_error,,,,,,evade,6
 pn,timeout,120.00,2.268,1.0,traces/evade__pn__t06.csv,113.40,evade,6
@@ -248,7 +248,7 @@ pipeline/rendezvous+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,7
 pursuit,capture,13.30,0.634,1.0,traces/evade__pursuit__t07.csv,6.60,evade,7
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,capture,16.70,0.885,1.0,traces/evade__pipeline_rendezvous-const_vel-passthrough-px4_setpoint__t08.csv,10.60,evade,8
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,8
-pipeline/rendezvous+gru+passthrough+se3,miss,22.82,2.897,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t08.csv,16.90,evade,8
+pipeline/rendezvous+gru+passthrough+se3,superseded,22.82,2.897,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t08.csv,16.90,evade,8
 pn,scene_error,,,,,,evade,8
 rl/model_evasive_40k,miss,28.74,1.891,1.0,traces/evade__rl_model_evasive_40k__t08.csv,21.90,evade,8
 pipeline/rendezvous+const_vel+passthrough+px4_setpoint,scene_error,,,,,,evade,9
@@ -260,8 +260,8 @@ pn,scene_error,,,,,,circle,2
 pursuit,capture,13.05,0.315,1.0,traces/circle__pursuit__t06.csv,6.40,circle,6
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,circle,8
 pipeline/tail_chase+gru+passthrough+px4_setpoint,capture,23.21,0.994,1.0,traces/circle__pipeline_tail_chase-gru-passthrough-px4_setpoint__t09.csv,17.00,circle,9
-pipeline/rendezvous+gru+passthrough+se3,capture,26.10,0.955,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t03.csv,19.40,evade,3
-pipeline/rendezvous+gru+passthrough+se3,miss,22.50,2.559,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t06.csv,14.10,evade,6
+pipeline/rendezvous+gru+passthrough+se3,superseded,26.10,0.955,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t03.csv,19.40,evade,3
+pipeline/rendezvous+gru+passthrough+se3,superseded,22.50,2.559,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t06.csv,14.10,evade,6
 pipeline/rendezvous+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,7
 pipeline/tail_chase+gru+passthrough+px4_setpoint,scene_error,,,,,,evade,8
 pn,timeout,120.00,3.253,1.0,traces/evade__pn__t08.csv,111.70,evade,8
@@ -297,3 +297,23 @@ pipeline/tail_chase+gru+passthrough+px4_setpoint,capture,78.20,0.926,1.0,traces/
 pn_int,capture,12.30,0.860,1.0,traces/evade__pn_int__t09.csv,6.10,evade,9
 pn_int,capture,13.90,0.873,1.0,traces/circle__pn_int__t01.csv,7.80,circle,1
 pn,capture,16.20,0.849,1.0,traces/circle__pn__t02.csv,9.40,circle,2
+pipeline/rendezvous+gru+passthrough+se3,capture,13.80,0.980,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t00.csv,7.70,circle,0
+pipeline/rendezvous+gru+passthrough+se3,capture,30.77,0.706,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t01.csv,25.30,circle,1
+pipeline/rendezvous+gru+passthrough+se3,capture,15.30,0.992,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t02.csv,9.10,circle,2
+pipeline/rendezvous+gru+passthrough+se3,capture,15.70,0.646,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t03.csv,9.20,circle,3
+pipeline/rendezvous+gru+passthrough+se3,capture,13.50,0.071,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t04.csv,8.90,circle,4
+pipeline/rendezvous+gru+passthrough+se3,capture,18.36,0.436,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t05.csv,9.70,circle,5
+pipeline/rendezvous+gru+passthrough+se3,capture,14.89,0.961,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t06.csv,10.60,circle,6
+pipeline/rendezvous+gru+passthrough+se3,miss,31.60,1.004,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t07.csv,26.60,circle,7
+pipeline/rendezvous+gru+passthrough+se3,capture,12.10,0.824,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t08.csv,8.60,circle,8
+pipeline/rendezvous+gru+passthrough+se3,capture,15.18,0.829,1.0,traces/circle__pipeline_rendezvous-gru-passthrough-se3__t09.csv,7.30,circle,9
+pipeline/rendezvous+gru+passthrough+se3,capture,15.18,0.393,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t00.csv,8.50,evade,0
+pipeline/rendezvous+gru+passthrough+se3,capture,12.23,0.975,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t01.csv,7.90,evade,1
+pipeline/rendezvous+gru+passthrough+se3,capture,14.80,0.992,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t02.csv,10.20,evade,2
+pipeline/rendezvous+gru+passthrough+se3,capture,14.57,0.738,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t03.csv,8.40,evade,3
+pipeline/rendezvous+gru+passthrough+se3,capture,11.70,0.667,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t04.csv,7.90,evade,4
+pipeline/rendezvous+gru+passthrough+se3,capture,22.59,0.797,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t05.csv,17.80,evade,5
+pipeline/rendezvous+gru+passthrough+se3,capture,16.20,0.740,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t06.csv,8.50,evade,6
+pipeline/rendezvous+gru+passthrough+se3,capture,24.30,0.761,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t07.csv,18.90,evade,7
+pipeline/rendezvous+gru+passthrough+se3,capture,21.02,0.996,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t08.csv,16.00,evade,8
+pipeline/rendezvous+gru+passthrough+se3,capture,22.60,0.964,1.0,traces/evade__pipeline_rendezvous-gru-passthrough-se3__t09.csv,17.20,evade,9

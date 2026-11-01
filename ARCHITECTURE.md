@@ -140,7 +140,7 @@ the cascade by not starting MPC/control for that branch).
 | MPC→control link | MPC `MultiDOFJointTrajectory` → offboard node | MPC `StateTrajectory` → `interception_control` |
 | Setpoint to PX4 | velocity `PositionTarget` | position `PositionTarget` (`px4_setpoint`); `se3`→`AttitudeTarget` |
 | Default predictor | GRU (trained weights) | `gru` (trained weights shipped in `interception_prediction/models/`; falls back to `const_vel` without torch/weights) |
-| Default controller | geometric/SE3 attitude | `px4_setpoint` (SE3 ported, unvalidated in flight) |
+| Default controller | geometric/SE3 attitude | `px4_setpoint` (`se3` ported and flight-validated: 19/20 in the SITL benchmark with `hover_thrust` 0.79) |
 | Messages | `custom_trajectory_msgs` + `multi_target_kf` | unified `interception_msgs` |
 | Transport | (Humble/zenoh era) | **FastRTPS** (zenoh drops high-rate `/clock`+odom here) |
 | Pluggability | fixed wiring | per-stage `backend:=`, swap one without touching others |
@@ -265,7 +265,8 @@ ros2 topic hz   /interceptor/mavros/setpoint_raw/local
 - **Open items:** `interception_metrics` capture-CSV stayed empty in the run
   (its own capture detector uses `interceptor_spawn`/`target_spawn` params — check
   those offsets vs the world frame; the FSM's range is the authoritative capture
-  signal). `se3` controller + `pn_velocity` are built but unvalidated in flight.
+  signal). `se3` is flight-validated (BENCHMARKS.md); `pn_velocity` is built but
+  unvalidated in flight.
   `rl` orchestrator is a reserved slot (would wrap a `d2dtracker_rl` policy).
 - **Operational note:** launch the pipeline only via `pipeline.launch.py` (single
   entry); hand-launching individual stages across runs leaves orphan nodes

@@ -2,8 +2,9 @@
 
 Capture benchmark of every interception method that flies in the two-drone
 scene, 10 trials per method and target behaviour. Run 30–31 Oct 2026 with
-`scripts/run_benchmark.py`, plus textbook PN (`pn_int`) and the last 5 cells on
-1 Nov; data, traces and figures are in
+`scripts/run_benchmark.py`; on 1 Nov textbook PN (`pn_int`) and the last 5
+cells were added and the SE(3) controller re-flown with its corrected thrust
+model. Data, traces and figures are in
 [`benchmarks/2026-10-30_pipeline_vs_pn/`](benchmarks/2026-10-30_pipeline_vs_pn/).
 It replaces the June 2026 single-run table (kept at the end for history).
 
@@ -41,7 +42,7 @@ It replaces the June 2026 single-run table (kept at the end for history).
 | `pipeline/rendezvous+gru+passthrough+px4_setpoint` | FSM head (`pipeline_fsm`: arm → AUTO.TAKEOFF to 4 m → OFFBOARD pursue/attack → RTL); KF → GRU forecast → rendezvous planner → PX4 position setpoints |
 | `pipeline/rendezvous+const_vel+passthrough+px4_setpoint` | same, constant-velocity forecast (GRU ablation) |
 | `pipeline/tail_chase+gru+passthrough+px4_setpoint` | same, tail-chase planner |
-| `pipeline/rendezvous+gru+passthrough+se3` | same, geometric SE(3) controller (attitude + thrust) instead of PX4 position control |
+| `pipeline/rendezvous+gru+passthrough+se3` | same, geometric SE(3) controller (attitude + thrust) instead of PX4 position control; thrust scaled by PX4's hover thrust (0.79), acceleration limit 12 m/s² applied vertical-first |
 | `bt/rendezvous+gru` | Behaviour-Tree head (`d2dtracker_states` `bt_node`, climbs in OFFBOARD) on the rendezvous + GRU reference |
 | `pn` | `d2dtracker_interception` guidance, June PN law (N = 3, fixed 6 m/s closing, correction added to the measured velocity) |
 | `pursuit` | same node, pure pursuit at 6 m/s |
@@ -57,7 +58,7 @@ It replaces the June 2026 single-run table (kept at the end for history).
 | circle | rendezvous+gru | 10/10 | 100 % (72–100) | 9.6 [9.0–10.5] | 0.96 / 1.00 | |
 | circle | rendezvous+const_vel | 10/10 | 100 % (72–100) | 9.5 [9.3–10.4] | 0.95 / 0.99 | |
 | circle | tail_chase+gru | 10/10 | 100 % (72–100) | 12.6 [10.3–18.7] | 0.99 / 1.00 | |
-| circle | rendezvous+gru+se3 | 6/10 | 60 % (31–83) | 16.1 [13.8–24.0] | 0.99 / 4.22 | 4 miss |
+| circle | rendezvous+gru+se3 | 9/10 | 90 % (60–98) | 9.1 [8.6–9.7] | 0.83 / 1.00 | 1 miss |
 | circle | **bt**/rendezvous+gru | 10/10 | 100 % (72–100) | **4.6** [4.3–5.5] | 0.97 / 1.00 | |
 | circle | pn | 4/10 | 40 % (17–69) | 13.4 [11.1–16.8] | 1.61 / 2.14 | 6 timeout |
 | circle | pursuit | 10/10 | 100 % (72–100) | 11.8 [9.0–13.7] | 0.82 / 0.99 | |
@@ -66,7 +67,7 @@ It replaces the June 2026 single-run table (kept at the end for history).
 | evade | rendezvous+gru | 8/10 | 80 % (49–94) | 22.1 [10.7–45.2] | 0.99 / 1.06 | 2 miss |
 | evade | rendezvous+const_vel | 9/10 | 90 % (60–98) | 10.3 [10.0–13.3] | 0.97 / 1.20 | 1 miss |
 | evade | tail_chase+gru | 8/10 | 80 % (49–94) | 28.5 [24.3–40.3] | 0.99 / 1.12 | 2 miss |
-| evade | rendezvous+gru+se3 | 1/10 | 10 % (2–40) | 19.4 | 3.06 / 4.13 | 9 miss |
+| evade | rendezvous+gru+se3 | 10/10 | 100 % (72–100) | 9.3 [8.4–16.9] | 0.78 / 1.00 | |
 | evade | **bt**/rendezvous+gru | 10/10 | 100 % (72–100) | 9.9 [4.5–12.9] | 0.96 / 1.00 | |
 | evade | pn | 1/10 | 10 % (2–40) | 13.5 | 2.59 / 3.57 | 9 timeout |
 | evade | pursuit | 10/10 | 100 % (72–100) | 9.6 [7.7–15.8] | 0.88 / 0.99 | |
@@ -91,12 +92,13 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
 ## Findings
 
 - **The Behaviour-Tree head is the strongest method:** 20/20 captures, the
-  fastest on the circle (under evasion `pn_int` is quicker but captures 8/10).
-  Most of its lead over the FSM head (4.6 s vs 9.6 s on the circle) is take-off.
-  The altitude traces show the FSM head spends 3.7–5.3 s in PX4's AUTO.TAKEOFF
-  before OFFBOARD pursuit starts, while the BT climbs on its own OFFBOARD
-  setpoints and often captures before it reaches 3.5 m. After take-off both
-  heads fly the same rendezvous + GRU reference.
+  fastest on the circle. Under evasion the BT head, pursuit and SE(3) are within
+  0.6 s of each other (9.3–9.9 s) and `pn_int` is quicker (7.7 s) but captures
+  8/10. Most of its lead over the FSM head (4.6 s vs 9.6 s on the circle) is
+  take-off. The altitude traces show the FSM head spends 3.7–5.3 s in PX4's
+  AUTO.TAKEOFF before OFFBOARD pursuit starts, while the BT climbs on its own
+  OFFBOARD setpoints and often captures before it reaches 3.5 m. After take-off
+  both heads fly the same rendezvous + GRU reference.
 - **Pure pursuit at 6 m/s also captures every time (20/20)**, a few seconds
   slower than the BT head. It is a strong, simple baseline at this target speed.
 - **Textbook PN (`pn_int`) is the quickest once airborne:** 17/20 in a median
@@ -118,11 +120,17 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
   The training data of the shipped GRU weights is not documented here.
 - **Rendezvous is faster than tail chase:** 8/10 each under evasion, in a
   median 22.1 s against 28.5 s; on the circle 10/10 each, 9.6 s against 12.6 s.
-- **The SE(3) geometric controller is not ready:** 6/10 on the circle, 1/10
-  under evasion. Its 13 misses came back to the ground without closing in
-  (closest approach 1.1–4.2 m, median 2.9 m), which points to tuning: gains and
-  thrust model against PX4's own attitude loop. It needed the correct vehicle mass (2.466 kg)
-  to fly at all (B6).
+- **The SE(3) geometric controller holds up once its thrust model is right:**
+  19/20, in a median 9.1 s (circle) and 9.3 s (evade) from liftoff, level
+  with the FSM head's PX4 position control on the circle and faster under
+  evasion. Its first campaign (6/10, 1/10) assumed 34 N of thrust; PX4's
+  hover-thrust estimate for `x500_d435` (0.79) gives 30.5 N, a thrust/weight
+  of 1.26. Chasing at up to 45° of tilt then saturated the throttle, and the
+  acceleration clip scaled gravity's share down with the rest, so the vehicle
+  sank: its misses passed 2–4 m *under* the target, often within 1 m
+  horizontally. `hover_thrust` and a vertical-first acceleration clip
+  (`interception_control` `cf5d9d4`) fixed it. It also needs the correct mass
+  (2.466 kg) to fly at all (B6).
 - **The RL policy does not transfer to this scene** (2/20). It was trained
   against a 0.5 m/s target; here the target flies at 2.4 m/s. The
   speed-generalisation sweep and the speed curriculum (C4, C6) target this gap.
@@ -133,9 +141,10 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
 - One target speed (2.4 m/s) and one geometry.
 - Capture is a 1.0 m sphere at 10 Hz. `closest approach` at capture only shows
   where sampling crossed the radius.
-- 118 attempts were infrastructure faults and were excluded and re-run: 112
-  scenes that could not be made healthy, 3 SE(3) rows superseded by the mass
-  fix, and 3 runner errors. `summary.csv` counts them per method (`errors`).
+- 138 attempts were excluded and re-run: 112 scenes that could not be made
+  healthy, 23 SE(3) rows superseded (3 by the mass fix, the 20 of the first
+  campaign by the thrust fix; their trace files were overwritten by the
+  re-flights and stay in git history), and 3 runner errors. `summary.csv` counts them per method (`errors`).
   The main causes:
   - After any capture with contact the interceptor's PX4 failed its preflight
     check (EKF magnetometer fault), forcing a sim restart.
