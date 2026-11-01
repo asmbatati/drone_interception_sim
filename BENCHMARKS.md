@@ -2,9 +2,9 @@
 
 Capture benchmark of every interception method that flies in the two-drone
 scene, 10 trials per method and target behaviour. Run 30–31 Oct 2026 with
-`scripts/run_benchmark.py`; on 1 Nov textbook PN (`pn_int`) and the last 5
-cells were added and the SE(3) controller re-flown with its corrected thrust
-model. Data, traces and figures are in
+`scripts/run_benchmark.py`. On 1 Nov textbook PN (`pn_int`), the last 5
+cells and the fixed OSQP MPC (`mpc_12state`) were added, and the SE(3)
+controller was re-flown with its corrected thrust model. Data, traces and figures are in
 [`benchmarks/2026-10-30_pipeline_vs_pn/`](benchmarks/2026-10-30_pipeline_vs_pn/).
 It replaces the June 2026 single-run table (kept at the end for history).
 
@@ -42,6 +42,7 @@ It replaces the June 2026 single-run table (kept at the end for history).
 | `pipeline/rendezvous+gru+passthrough+px4_setpoint` | FSM head (`pipeline_fsm`: arm → AUTO.TAKEOFF to 4 m → OFFBOARD pursue/attack → RTL); KF → GRU forecast → rendezvous planner → PX4 position setpoints |
 | `pipeline/rendezvous+const_vel+passthrough+px4_setpoint` | same, constant-velocity forecast (GRU ablation) |
 | `pipeline/tail_chase+gru+passthrough+px4_setpoint` | same, tail-chase planner |
+| `pipeline/rendezvous+gru+mpc_12state+px4_setpoint` | same, with the 12-state jerk-limited OSQP MPC (`interception_mpc` `mpc_12state`) between planner and controller; PX4 tracks the plan's 1.0 s sample |
 | `pipeline/rendezvous+gru+passthrough+se3` | same, geometric SE(3) controller (attitude + thrust) instead of PX4 position control; thrust scaled by PX4's hover thrust (0.79), acceleration limit 12 m/s² applied vertical-first |
 | `bt/rendezvous+gru` | Behaviour-Tree head (`d2dtracker_states` `bt_node`, climbs in OFFBOARD) on the rendezvous + GRU reference |
 | `pn` | `d2dtracker_interception` guidance, June PN law (N = 3, fixed 6 m/s closing, correction added to the measured velocity) |
@@ -58,6 +59,7 @@ It replaces the June 2026 single-run table (kept at the end for history).
 | circle | rendezvous+gru | 10/10 | 100 % (72–100) | 9.6 [9.0–10.5] | 0.96 / 1.00 | |
 | circle | rendezvous+const_vel | 10/10 | 100 % (72–100) | 9.5 [9.3–10.4] | 0.95 / 0.99 | |
 | circle | tail_chase+gru | 10/10 | 100 % (72–100) | 12.6 [10.3–18.7] | 0.99 / 1.00 | |
+| circle | rendezvous+gru+mpc | 10/10 | 100 % (72–100) | 13.0 [9.8–15.2] | 0.79 / 0.91 | |
 | circle | rendezvous+gru+se3 | 9/10 | 90 % (60–98) | 9.1 [8.6–9.7] | 0.83 / 1.00 | 1 miss |
 | circle | **bt**/rendezvous+gru | 10/10 | 100 % (72–100) | **4.6** [4.3–5.5] | 0.97 / 1.00 | |
 | circle | pn | 4/10 | 40 % (17–69) | 13.4 [11.1–16.8] | 1.61 / 2.14 | 6 timeout |
@@ -67,6 +69,7 @@ It replaces the June 2026 single-run table (kept at the end for history).
 | evade | rendezvous+gru | 8/10 | 80 % (49–94) | 22.1 [10.7–45.2] | 0.99 / 1.06 | 2 miss |
 | evade | rendezvous+const_vel | 9/10 | 90 % (60–98) | 10.3 [10.0–13.3] | 0.97 / 1.20 | 1 miss |
 | evade | tail_chase+gru | 8/10 | 80 % (49–94) | 28.5 [24.3–40.3] | 0.99 / 1.12 | 2 miss |
+| evade | rendezvous+gru+mpc | 8/10 | 80 % (49–94) | 11.9 [8.9–15.3] | 0.88 / 1.12 | 2 miss |
 | evade | rendezvous+gru+se3 | 10/10 | 100 % (72–100) | 9.3 [8.4–16.9] | 0.78 / 1.00 | |
 | evade | **bt**/rendezvous+gru | 10/10 | 100 % (72–100) | 9.9 [4.5–12.9] | 0.96 / 1.00 | |
 | evade | pn | 1/10 | 10 % (2–40) | 13.5 | 2.59 / 3.57 | 9 timeout |
@@ -74,7 +77,7 @@ It replaces the June 2026 single-run table (kept at the end for history).
 | evade | pn_int | 8/10 | 80 % (49–94) | **7.7** [6.8–8.3] | 0.84 / 1.83 | 2 miss |
 | evade | rl/model_evasive_40k | 0/10 | 0 % (0–28) | — | 2.39 / 7.46 | 6 miss, 4 timeout |
 
-180 valid trials of 180. Five of them (tail_chase circle t08 and evade t08/t09,
+200 valid trials of 200. Five of them (tail_chase circle t08 and evade t08/t09,
 pn circle t02, rendezvous+gru evade t07) never got a healthy scene in the four
 October passes and ran on 1 Nov, after the clock-bridge fix (Caveats). The
 machine-readable table is
@@ -131,6 +134,22 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
   horizontally. `hover_thrust` and a vertical-first acceleration clip
   (`interception_control` `cf5d9d4`) fixed it. It also needs the correct mass
   (2.466 kg) to fly at all (B6).
+- **The OSQP MPC (`mpc_12state`) flies the cascade:** 18/20, level with the
+  passthrough pipeline it wraps (10/10 and 8/10). It is slower on the circle
+  (13.0 s against 9.6 s). Under evasion it is quicker and steadier: 11.9 s
+  [8.9–15.3] against 22.1 s [10.7–45.2]. Its 2 misses are the FSM head's: it
+  declared capture on the KF estimate (0.97 and 0.99 m) while the true range
+  was 1.12 and 1.02 m. Before 1 Nov it trailed the target (closest 2.7 m).
+  Each solve started at zero acceleration, so under the 5 m/s³ jerk limit the
+  plan never built up speed. Each solve now starts from the previous plan's
+  acceleration (`interception_mpc` `2671cf5`). A seeded solve can turn
+  infeasible while the vertical plan climbs, because the ported core then
+  shrinks the horizontal velocity bound. Such solves are re-solved from zero
+  acceleration; before that retry, one smoke trial lost 62 s of commands and
+  timed out. The controller tracks the plan's 1.0 s sample, the pipeline's
+  default for this backend. PX4 turns a position setpoint into 0.95 times the
+  lead as velocity, so the sample must lead the drone by about 1 s. With 0.3 s
+  the drone hovers.
 - **The RL policy does not transfer to this scene** (2/20). It was trained
   against a 0.5 m/s target; here the target flies at 2.4 m/s. The
   speed-generalisation sweep and the speed curriculum (C4, C6) target this gap.
@@ -141,7 +160,7 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
 - One target speed (2.4 m/s) and one geometry.
 - Capture is a 1.0 m sphere at 10 Hz. `closest approach` at capture only shows
   where sampling crossed the radius.
-- 138 attempts were excluded and re-run: 112 scenes that could not be made
+- 140 attempts were excluded and re-run: 114 scenes that could not be made
   healthy, 23 SE(3) rows superseded (3 by the mass fix, the 20 of the first
   campaign by the thrust fix; their trace files were overwritten by the
   re-flights and stay in git history), and 3 runner errors. `summary.csv` counts them per method (`errors`).
@@ -175,7 +194,8 @@ python3 ros2_ws/src/drone_interception_sim/scripts/analyze_benchmark.py ~/benchm
 The runner starts and stops the sim itself, using `partition` and `domain` from
 the campaign file. This campaign needed four passes between 30 Oct 05:00 and
 31 Oct 05:00 (with pauses for runner fixes), mostly spent on sim restarts; the
-`pn_int` rows and the last 5 cells took about an hour on 1 Nov.
+`pn_int` rows and the last 5 cells took about an hour on 1 Nov, the
+`mpc_12state` rows another hour.
 
 ## June 2026 single runs (history)
 

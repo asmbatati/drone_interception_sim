@@ -265,8 +265,9 @@ ros2 topic hz   /interceptor/mavros/setpoint_raw/local
 - **Open items:** `interception_metrics` capture-CSV stayed empty in the run
   (its own capture detector uses `interceptor_spawn`/`target_spawn` params — check
   those offsets vs the world frame; the FSM's range is the authoritative capture
-  signal). `se3` is flight-validated (BENCHMARKS.md); `pn_velocity` is built but
-  unvalidated in flight.
+  signal). `se3` (19/20) and `mpc_12state` (18/20, with the 1.0 s control
+  lookahead the pipeline sets for it) are flight-validated (BENCHMARKS.md);
+  `pn_velocity` is built but unvalidated in flight.
   `rl` orchestrator is a reserved slot (would wrap a `d2dtracker_rl` policy).
 - **Operational note:** launch the pipeline only via `pipeline.launch.py` (single
   entry); hand-launching individual stages across runs leaves orphan nodes

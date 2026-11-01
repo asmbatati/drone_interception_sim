@@ -43,6 +43,16 @@ methods:
     predictor: gru
     viz: 'false'
   metrics_in_launch: true
+- name: pipeline/rendezvous+gru+mpc_12state+px4_setpoint
+  launch:
+  - drone_interception_sim
+  - pipeline.launch.py
+  - orchestrator: fsm
+    planner: rendezvous
+    predictor: gru
+    mpc: mpc_12state
+    viz: 'false'
+  metrics_in_launch: true
 - name: pipeline/rendezvous+gru+passthrough+se3
   launch:
   - drone_interception_sim
