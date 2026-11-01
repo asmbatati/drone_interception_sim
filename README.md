@@ -4,7 +4,7 @@ Drone-to-drone **interception** simulation assets (interceptor + target multi-dr
 for ROS 2 **Jazzy** + Gazebo **Harmonic** + PX4 SITL. Built on top of
 [`uavros2`](../uavros2) — it reuses that package's parametric `gz_sim` /
 `mavros` launches, drone models (`x500_d435`, `x3_uav`) and PX4 airframes
-(`4020`, `4021`) rather than duplicating them.
+(`4420`, `4421`) rather than duplicating them.
 
 ## What it does
 
@@ -15,7 +15,7 @@ instance with its own MAVROS stack:
 |---|---|---|
 | namespace | `interceptor` | `target` |
 | model | `x500_d435` | `x3_uav` |
-| PX4 autostart | `4020` | `4021` |
+| PX4 autostart | `4420` | `4421` |
 | instance (`px4 -i`) | `0` | `1` |
 | MAVROS `fcu_url` | `udp://:14540@127.0.0.1:14557` | `udp://:14541@127.0.0.1:14558` |
 | `tgt_system` | `1` | `2` |

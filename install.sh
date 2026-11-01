@@ -3,7 +3,7 @@
 # Copy drone_interception_sim's interception-specific assets into the PX4 tree.
 #
 # This package reuses uavros2's models (x500_d435, x3_uav) and airframes
-# (4020, 4021), which uavros2/install.sh already copies into PX4. Run THIS
+# (4420, 4421), which uavros2/install.sh already copies into PX4. Run THIS
 # script only for the *delta* this package adds (custom worlds / airframes).
 # It assumes uavros2/install.sh has already been run.
 #

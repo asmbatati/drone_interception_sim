@@ -32,9 +32,9 @@ DEFAULT_ROS_DOMAIN_ID = '77'
 # Target identity (see plan: spawn scheme table)
 NS = 'target'
 MODEL = 'x3_uav'
-# uavros2's install.sh provisions x3_uav as airframe 4021 (4022 is now
+# uavros2's install.sh provisions x3_uav as airframe 4421 (4422 is
 # x500_mono_cam_3d_lidar). Override with px4_autostart_id:= if your PX4 differs.
-AUTOSTART_ID = '4021'
+AUTOSTART_ID = '4421'
 INSTANCE_ID = '1'
 # PX4 SITL port convention: instance i -> listen 14540+i, remote 14557+i.
 FCU_URL = 'udp://:14541@127.0.0.1:14558'

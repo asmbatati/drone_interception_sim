@@ -124,7 +124,7 @@ def _kill_stale_sim(partition):
 # Interceptor identity (see plan: spawn scheme table)
 NS = 'interceptor'
 MODEL = 'x500_d435'
-AUTOSTART_ID = '4020'
+AUTOSTART_ID = '4420'
 INSTANCE_ID = '0'
 # PX4 SITL port convention: instance i -> listen 14540+i, remote 14557+i.
 FCU_URL = 'udp://:14540@127.0.0.1:14557'
