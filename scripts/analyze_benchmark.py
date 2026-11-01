@@ -25,11 +25,33 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+import yaml  # noqa: E402
 
 # Categorical slots in fixed order (validated: dataviz reference palette).
 SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300',
           '#6250d6', '#e34948']
 INK, INK2, GRID = '#0b0b0b', '#52514e', '#e4e3df'
+FAMILIES = ['FSM head + pipeline', 'Behaviour-Tree head', 'guidance law', 'RL policy']
+
+
+def family(method):
+    """Colour slot: what kind of controller (each bar and panel is labelled)."""
+    if method.startswith('pipeline/'):
+        return 0
+    if method.startswith('bt/'):
+        return 1
+    return 3 if method.startswith('rl/') else 2
+
+
+def color(method):
+    return SERIES[family(method)]
+
+
+def family_legend(fig, methods):
+    shown = sorted({family(m) for m in methods})
+    fig.legend([plt.Rectangle((0, 0), 1, 1, color=SERIES[k]) for k in shown],
+               [FAMILIES[k] for k in shown], fontsize=7, frameon=False,
+               loc='upper center', ncol=len(shown))
 
 
 def wilson(k, n, z=1.96):
@@ -111,7 +133,7 @@ def fig_capture(s, methods, scens, path):
             if m not in sub.index:
                 continue
             r = sub.loc[m]
-            ax.bar(i, r.capture_rate, width=0.6, color=SERIES[i % len(SERIES)],
+            ax.bar(i, r.capture_rate, width=0.6, color=color(m),
                    edgecolor='white', linewidth=2)
             ax.errorbar(i, r.capture_rate,
                         yerr=[[max(0.0, r.capture_rate - r.ci_lo)],
@@ -126,7 +148,8 @@ def fig_capture(s, methods, scens, path):
         ax.set_title(scen, fontsize=9, color=INK)
         style(ax)
     axes[0][0].set_ylabel('capture rate (95 % Wilson CI)', fontsize=8, color=INK)
-    fig.tight_layout()
+    family_legend(fig, methods)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(path, dpi=200)
     plt.close(fig)
 
@@ -141,7 +164,7 @@ def fig_time(df, methods, scens, path):
             if not len(te):
                 continue
             jitter = (np.random.default_rng(i).random(len(te)) - 0.5) * 0.25
-            ax.scatter(i + jitter, te, s=14, color=SERIES[i % len(SERIES)],
+            ax.scatter(i + jitter, te, s=14, color=color(m),
                        edgecolor='white', linewidth=0.6, zorder=3)
             ax.hlines(np.median(te), i - 0.3, i + 0.3, color=INK, linewidth=1.5,
                       zorder=4)
@@ -152,7 +175,8 @@ def fig_time(df, methods, scens, path):
         style(ax)
     axes[0][0].set_ylabel('time from liftoff to capture (s)\n(dots: trials, bar: median)',
                           fontsize=8, color=INK)
-    fig.tight_layout()
+    family_legend(fig, methods)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(path, dpi=200)
     plt.close(fig)
 
@@ -183,7 +207,7 @@ def fig_range(df, methods, scen, path, capture_radius=1.0):
             tr = _trace(r.trace_csv)
             if tr is None:
                 continue
-            ax.plot(tr.te, tr['range'], color=SERIES[i % len(SERIES)], linewidth=1.2,
+            ax.plot(tr.te, tr['range'], color=color(m), linewidth=1.2,
                     alpha=0.8 if r.outcome == 'capture' else 0.35)
         ax.axhline(capture_radius, color=INK2, linewidth=0.8, linestyle='--')
         ax.set_title(short(m), fontsize=8, color=INK)
@@ -218,7 +242,7 @@ def fig_xy(df, methods, scen, path):
                 break
         if tr is not None:
             ax.plot(tr.tx, tr.ty, color=INK2, linewidth=1.2, label='target')
-            ax.plot(tr.ix, tr.iy, color=SERIES[i % len(SERIES)], linewidth=1.6,
+            ax.plot(tr.ix, tr.iy, color=color(m), linewidth=1.6,
                     label='interceptor')
             ax.scatter([tr.ix.iloc[-1]], [tr.iy.iloc[-1]], s=30, marker='x',
                        color=INK, zorder=4)
@@ -246,6 +270,15 @@ def main():
     # traces may be stored relative to the run dir (a copied/committed run)
     df['trace_csv'] = [p if not isinstance(p, str) or os.path.isabs(p)
                        else os.path.join(a.run, p) for p in df.trace_csv]
+    camp = os.path.join(a.run, 'campaign.yaml')
+    if os.path.exists(camp):   # campaign order, not the order rows were appended
+        with open(camp) as f:
+            order = [m['name'] for m in yaml.safe_load(f).get('methods', [])]
+        scen_order = list(dict.fromkeys(df.scenario))
+        df = df.assign(_s=df.scenario.map(scen_order.index),
+                       _m=df.method.map(lambda m: order.index(m) if m in order
+                                        else len(order)))
+        df = df.sort_values(['_s', '_m'], kind='stable').drop(columns=['_s', '_m'])
     n_infra = int(df.outcome.isin(INFRA).sum())
     df_all, df = df, df[~df.outcome.isin(INFRA)]
     out = os.path.join(a.run, 'report')
