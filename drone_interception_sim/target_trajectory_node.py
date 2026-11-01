@@ -140,6 +140,12 @@ class TargetTrajectory(Node):
         # PX4 requires a setpoint stream before OFFBOARD is accepted.
         if self.counter_ < 100:
             return
+        if not (self.set_mode_client_.service_is_ready()
+                and self.arming_client_.service_is_ready()):
+            self.get_logger().warn(
+                f'Target: mavros/set_mode or mavros/cmd/arming not discovered yet '
+                f'(mode={self.state_.mode!r}, armed={self.state_.armed})',
+                throttle_duration_sec=10.0)
         if self.state_.mode != 'OFFBOARD' and self.set_mode_client_.service_is_ready():
             req = SetMode.Request()
             req.custom_mode = 'OFFBOARD'

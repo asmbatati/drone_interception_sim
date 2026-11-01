@@ -294,10 +294,18 @@ def launch_setup(context, *args, **kwargs):
             '-r', '/d435/points:=' + NS + '/points',
             '-r', '/d435/camera_info:=' + NS + '/camera_info',
         ]
+    # Start the bridge only once the gz server publishes /clock. Started with the
+    # launch (seconds before PX4 brings the server up) it sometimes never passed
+    # /clock on although gz listed it as a subscriber: every use_sim_time node
+    # froze, so the target node never streamed setpoints or asked for OFFBOARD
+    # and the target stayed disarmed on the ground. A bridge started later
+    # always delivered.
+    wait_for_gz_clock = ("bash -c 'until timeout 5 gz topic -l | grep -qx /clock; "
+                         "do sleep 0.5; done; exec \"$@\"' --")
     actions.append(Node(
         package='ros_gz_bridge', executable='parameter_bridge',
         name='interceptor_depthcam_bridge',
-        arguments=bridge_args,
+        arguments=bridge_args, prefix=wait_for_gz_clock,
         parameters=[{'use_sim_time': True}], output='log'))
 
     # Body markers for RViz (no URDF; attached to base_link via TF). Default to
