@@ -92,6 +92,8 @@ def generate_launch_description():
         # 'mass' is read by the se3 backend only. '' lookahead keeps each
         # backend's own default (se3 0.1 s, others 0.3 s)
         params={'mass': LaunchConfiguration('vehicle_mass'),
+                'hover_thrust': LaunchConfiguration('hover_thrust'),
+                'max_accel': LaunchConfiguration('max_accel'),
                 'lookahead_time': PythonExpression([
             "float('", LaunchConfiguration('control_lookahead'), "') if '",
             LaunchConfiguration('control_lookahead'), "' else (0.1 if '",
@@ -217,6 +219,13 @@ def generate_launch_description():
                               description='interceptor mass for the se3 controller, kg '
                                           '(x500_d435 incl. camera + gimbal per its SDF; '
                                           'camera-less x500: 2.064)'),
+        DeclareLaunchArgument('hover_thrust', default_value='0.79',
+                              description="PX4's normalized hover thrust for the se3 "
+                                          'controller (sets its max thrust = m g / hover; '
+                                          'x500_d435 in SITL: 0.79, from hover_thrust_estimate)'),
+        DeclareLaunchArgument('max_accel', default_value='12.0',
+                              description='se3 total acceleration limit, m/s^2 (x500_d435 '
+                                          'tops out near 12.4 at full thrust)'),
         DeclareLaunchArgument('control_lookahead', default_value='',
                               description='s into the command trajectory the control '
                                           "stage tracks ('' = backend default: se3 0.1, "
