@@ -150,6 +150,17 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
   default for this backend. PX4 turns a position setpoint into 0.95 times the
   lead as velocity, so the sample must lead the drone by about 1 s. With 0.3 s
   the drone hovers.
+- **FSM capture gate (2 Nov): 40/40.** `pipeline_fsm` now declares capture only after the
+  estimated range stays inside the radius for 0.6 s on fresh estimates
+  (`capture_confirm`, `4784b42`). Re-run of the two FSM-head pipelines, 10 trials per
+  cell, same scene and seeds (`benchmarks/2026-11-02_fsm_capture_gate/`): passthrough
+  10/10 on the circle and 10/10 under evasion, `mpc_12state` 10/10 and 10/10, closest
+  approach at most 1.00 m. Before the gate these cells were 10/10 and 8/10 (passthrough)
+  and 10/10 and 8/10 (`mpc_12state`), so 40/40 against 36/40; Fisher p = 0.12, so the
+  run agrees with the fix but does not prove it on its own. 43 trial starts were
+  re-run as infrastructure faults: the target's PX4 got no sensor data until
+  `uavros2` `c383bc9` (a second `gz sim` server per launch), and 16 interceptor
+  preflight checks failed and were retried by the runner.
 - **The RL policy does not transfer to this scene** (2/20). It was trained
   against a 0.5 m/s target; here the target flies at 2.4 m/s. The
   speed-generalisation sweep and the speed curriculum (C4, C6) target this gap.

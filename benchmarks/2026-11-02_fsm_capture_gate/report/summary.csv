@@ -1,0 +1,5 @@
+scenario,method,trials,captures,capture_rate,ci_lo,ci_hi,errors,t_engaged_median_s,t_engaged_q1_s,t_engaged_q3_s,t_total_median_s,min_range_median_m,min_range_max_m
+circle,pipeline/rendezvous+gru+passthrough+px4_setpoint,10,10,1.000,0.722,1.000,17,9.600,8.900,10.175,15.070,0.952,0.995
+circle,pipeline/rendezvous+gru+mpc_12state+px4_setpoint,10,10,1.000,0.722,1.000,11,10.400,9.250,14.350,16.810,0.738,0.935
+evade,pipeline/rendezvous+gru+passthrough+px4_setpoint,10,10,1.000,0.722,1.000,7,19.800,16.625,28.925,26.550,0.968,0.999
+evade,pipeline/rendezvous+gru+mpc_12state+px4_setpoint,10,10,1.000,0.722,1.000,8,15.150,9.775,18.075,21.250,0.794,0.952
