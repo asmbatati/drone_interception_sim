@@ -29,7 +29,11 @@ described in a YAML file (see ``benchmarks/campaigns/*.yaml``):
 * PX4's own preflight check on the interceptor (``px4-commander check`` on
   instance 0) must pass; an estimator fault left by a collision (seen: an EKF
   magnetometer fault after a capture at 0.7 m) otherwise blocks arming for the
-  rest of the campaign. A trial whose interceptor never lifts off is recorded
+  rest of the campaign. PX4 evaluates the check for the active flight mode: a
+  landed vehicle is still in AUTO.RTL, which always fails it, so the runner
+  switches to AUTO.LOITER (what the FSM head does before arming) and then
+  checks. If it still fails the runner logs the EKF fault flags and restarts
+  the sim. A trial whose interceptor never lifts off is recorded
   as ``no_liftoff`` (an infrastructure fault, not a method result), the sim is
   restarted and the trial is run again (up to ``max_retries``);
 * a seeded random delay of up to one target period randomizes the target's
@@ -308,11 +312,21 @@ class Runner:
             self.sim_scenario = None  # force a restart
         return False
 
-    def preflight_ok(self, instance=0, tries=8):
+    def preflight_ok(self, instance=0, tries=15):
         """PX4's preflight check on the interceptor instance (SITL client)."""
         exe = os.path.join(self.px4_dir, 'build', 'px4_sitl_default', 'bin', 'px4-commander')
         if not os.path.exists(exe):
             return True
+        # PX4 evaluates the check for the active flight mode. A landed vehicle is
+        # still in AUTO.RTL/AUTO.LAND, which fails it on the ground (and with no
+        # EKF fault raised); AUTO.LOITER passes at once. The FSM head makes the
+        # same switch before it arms, so check the state arming will see.
+        # Campaign of 2 Nov: 35 failed checks, each costing a sim restart;
+        # with this switch 6 of 6 trials ran with none.
+        st = self.watch.state.get('interceptor')
+        if st is not None and not st.armed and st.mode != 'AUTO.LOITER':
+            self.watch.request_mode('AUTO.LOITER')
+            self.watch.spin(2.0)
         out = ''
         for i in range(tries):
             r = subprocess.run(
@@ -324,10 +338,45 @@ class Runner:
             )
             out = (r.stdout + r.stderr).strip()
             if 'Preflight check: OK' in out or 'FAILED' not in out:
+                if i:
+                    log(f'interceptor preflight check passed after {i} retries')
                 return True
             self.watch.spin(3.0)
-        log(f'interceptor preflight check failed: {out.splitlines()[-1] if out else "?"}')
+        why = ' | '.join(dict.fromkeys(self.watch.texts.get('interceptor', [])[-8:]))
+        log(
+            f'interceptor preflight check failed: {out.splitlines()[-1] if out else "?"}'
+            f' (PX4: {why or "-"})'
+        )
+        self._log_estimator_flags(exe, instance)
         return False
+
+    @staticmethod
+    def _log_estimator_flags(commander, instance):
+        """Log the EKF2 fault flags that are raised (the usual preflight blockers)."""
+        listener = os.path.join(os.path.dirname(commander), 'px4-listener')
+        raised = []
+        for topic in ('estimator_status', 'estimator_status_flags'):
+            try:
+                r = subprocess.run(
+                    [listener, '--instance', str(instance), topic, '-n', '1'],
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                    cwd=os.path.dirname(os.path.dirname(commander)),
+                )
+            except (OSError, subprocess.SubprocessError):
+                continue
+            for line in (r.stdout or '').splitlines():
+                name, _, value = line.strip().partition(':')
+                value = value.strip().split(' ')[0]
+                if name.startswith(('pre_flt_fail', 'fs_', 'reject')) and value == 'True':
+                    raised.append(name)
+                elif name in ('filter_fault_flags', 'innovation_check_flags', 'health_flags'):
+                    if value not in ('0', ''):
+                        raised.append(f'{name}={value}')
+                elif name == 'mag_test_ratio':
+                    raised.append(f'{name}={value}')  # the arming limit is COM_ARM_EKF_YAW (0.5)
+        log(f'ekf2 faults raised: {raised or "-"}')
 
     def _bring_home(self):
         w = self.watch

@@ -1,0 +1,7 @@
+method,outcome,time_to_intercept_s,min_range_m,capture_radius_m,trace_csv,time_engaged_s,scenario,trial
+pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,18.84,0.925,1.0,bench_runs/2026-11-02_preflight_diag/traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t00.csv,14.50,circle,0
+pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,21.60,0.993,1.0,bench_runs/2026-11-02_preflight_diag/traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t01.csv,15.50,circle,1
+pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,15.90,0.991,1.0,bench_runs/2026-11-02_preflight_diag/traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t02.csv,9.90,circle,2
+pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,18.34,0.991,1.0,bench_runs/2026-11-02_preflight_diag/traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t03.csv,11.20,circle,3
+pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,17.60,0.992,1.0,bench_runs/2026-11-02_preflight_diag/traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t04.csv,12.70,circle,4
+pipeline/rendezvous+gru+passthrough+px4_setpoint,capture,18.60,0.986,1.0,bench_runs/2026-11-02_preflight_diag/traces/circle__pipeline_rendezvous-gru-passthrough-px4_setpoint__t05.csv,12.00,circle,5
