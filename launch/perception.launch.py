@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Optional vision perception for the interceptor (YOLOv8 + smart_track).
+"""
+Optional vision perception for the interceptor (YOLOv8 + smart_track).
 
 Pipeline: interceptor RGB image -> YOLOv8 detections -> smart_track yolo2pose
 (uses depth + camera_info) -> target-detection PoseArray. Feed the output into
@@ -14,6 +15,7 @@ Requirements (perception only; not needed for ground-truth interception):
 
   ros2 launch drone_interception_sim perception.launch.py device:=cpu
 """
+
 import os
 
 from ament_index_python import get_package_share_directory
@@ -26,7 +28,8 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     default_model = os.path.join(
-        get_package_share_directory('smart_track'), 'config', 'drone_detection_v3.pt')
+        get_package_share_directory('smart_track'), 'config', 'drone_detection_v3.pt'
+    )
 
     model = LaunchConfiguration('model')
     device = LaunchConfiguration('device')
@@ -37,40 +40,49 @@ def generate_launch_description():
     poses_topic = LaunchConfiguration('poses_topic')
 
     yolo = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('yolov8_bringup'),
-                                  'launch', 'yolov8.launch.py'])
-        ]),
+        PythonLaunchDescriptionSource(
+            [
+                PathJoinSubstitution(
+                    [FindPackageShare('yolov8_bringup'), 'launch', 'yolov8.launch.py']
+                )
+            ]
+        ),
         launch_arguments={
             'model': model,
             'device': device,
             'threshold': '0.5',
             'input_image_topic': image_topic,
             'namespace': 'yolo',
-        }.items())
+        }.items(),
+    )
 
     yolo2pose = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('smart_track'),
-                                  'launch', 'yolo2pose.launch.py'])
-        ]),
+        PythonLaunchDescriptionSource(
+            [
+                PathJoinSubstitution(
+                    [FindPackageShare('smart_track'), 'launch', 'yolo2pose.launch.py']
+                )
+            ]
+        ),
         launch_arguments={
             'depth_topic': depth_topic,
             'caminfo_topic': caminfo_topic,
             'yolo_detections_topic': detections_topic,
             'detections_poses_topic': poses_topic,
             'detector_ns': '',
-        }.items())
+        }.items(),
+    )
 
-    return LaunchDescription([
-        DeclareLaunchArgument('model', default_value=default_model),
-        DeclareLaunchArgument('device', default_value='cuda:0',
-                              description='cuda:0 or cpu'),
-        DeclareLaunchArgument('image_topic', default_value='/interceptor/image'),
-        DeclareLaunchArgument('depth_topic', default_value='/interceptor/depth_image'),
-        DeclareLaunchArgument('caminfo_topic', default_value='/interceptor/camera_info'),
-        DeclareLaunchArgument('detections_topic', default_value='/yolo/detections'),
-        DeclareLaunchArgument('poses_topic', default_value='/interceptor/target_detection'),
-        yolo,
-        yolo2pose,
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument('model', default_value=default_model),
+            DeclareLaunchArgument('device', default_value='cuda:0', description='cuda:0 or cpu'),
+            DeclareLaunchArgument('image_topic', default_value='/interceptor/image'),
+            DeclareLaunchArgument('depth_topic', default_value='/interceptor/depth_image'),
+            DeclareLaunchArgument('caminfo_topic', default_value='/interceptor/camera_info'),
+            DeclareLaunchArgument('detections_topic', default_value='/yolo/detections'),
+            DeclareLaunchArgument('poses_topic', default_value='/interceptor/target_detection'),
+            yolo,
+            yolo2pose,
+        ]
+    )

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Bring up the INTERCEPTOR drone (PX4 instance 0).
+"""
+Bring up the INTERCEPTOR drone (PX4 instance 0).
 
 This launch starts the PX4 SITL instance that brings up the single shared
 Gazebo server for the world, plus MAVROS, the TF tree, the depth-camera bridge
@@ -7,18 +8,22 @@ and (optionally) RViz. The TARGET drone (target.launch.py) is started AFTER this
 one so it attaches to the already-running Gazebo server instead of spawning a
 second one (the bug that made the old run_sim.launch.py unusable).
 """
+
 import os
 import signal
 import time
 
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, ExecuteProcess,
-                            IncludeLaunchDescription, OpaqueFunction)
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -37,7 +42,8 @@ DEFAULT_ROS_DOMAIN_ID = '77'
 
 
 def _kill_stale_sim(partition):
-    """Kill ALL leftovers from a PREVIOUS run of THIS sim before starting.
+    """
+    Kill ALL leftovers from a PREVIOUS run of THIS sim before starting.
 
     Two kinds of leftovers accumulate across repeated (re)launches and must both
     be cleared, or duplicate /clock bridges + multiple gz servers publish
@@ -66,18 +72,30 @@ def _kill_stale_sim(partition):
     except OSError:
         my_pgid = -1
     # cmdline substrings unique to THIS sim's ROS nodes
-    node_pats = ('/interceptor/mavros', '/target/mavros',
-                 'gz_ns:=interceptor', 'gz_ns:=target',
-                 'map2global_tf_node', 'map2map_frd_tf_node',
-                 'map2px4_interceptor_tf_node', 'map2px4_target_tf_node',
-                 'odom2base_tf_relay', 'drone_interception_sim/lib',
-                 'interceptor_depthcam_bridge',
-                 # controllers run against this sim (pipeline stages, heads)
-                 'interception_detection/lib', 'interception_estimation/lib', 'interception_prediction/lib',
-                 'interception_planning/lib', 'interception_mpc/lib', 'interception_control/lib',
-                 'shaheen_states/lib', 'shaheen_guidance/lib', 'shaheen_rl/lib')
-    launch_pats = ('ros2 launch drone_interception_sim',
-                   'ros2 launch shaheen_states')
+    node_pats = (
+        '/interceptor/mavros',
+        '/target/mavros',
+        'gz_ns:=interceptor',
+        'gz_ns:=target',
+        'map2global_tf_node',
+        'map2map_frd_tf_node',
+        'map2px4_interceptor_tf_node',
+        'map2px4_target_tf_node',
+        'odom2base_tf_relay',
+        'drone_interception_sim/lib',
+        'interceptor_depthcam_bridge',
+        # controllers run against this sim (pipeline stages, heads)
+        'interception_detection/lib',
+        'interception_estimation/lib',
+        'interception_prediction/lib',
+        'interception_planning/lib',
+        'interception_mpc/lib',
+        'interception_control/lib',
+        'shaheen_states/lib',
+        'shaheen_guidance/lib',
+        'shaheen_rl/lib',
+    )
+    launch_pats = ('ros2 launch drone_interception_sim', 'ros2 launch shaheen_states')
     killed = False
     for pid in os.listdir('/proc'):
         if not pid.isdigit():
@@ -94,8 +112,12 @@ def _kill_stale_sim(partition):
             # env. Orphaned bridges accumulate across crashed runs and kill
             # /clock delivery (0 live publishers -> every use_sim_time node
             # freezes), so they must be swept by the same partition match.
-            sim_proc = ('bin/px4' in cmd or 'gz sim' in cmd
-                        or 'parameter_bridge' in cmd or 'image_bridge' in cmd)
+            sim_proc = (
+                'bin/px4' in cmd
+                or 'gz sim' in cmd
+                or 'parameter_bridge' in cmd
+                or 'image_bridge' in cmd
+            )
             node_proc = any(p in cmd for p in node_pats)
             launch_proc = any(p in cmd for p in launch_pats)
             if not (sim_proc or node_proc or launch_proc):
@@ -118,7 +140,7 @@ def _kill_stale_sim(partition):
         except (FileNotFoundError, ProcessLookupError, PermissionError, ValueError):
             continue
     if killed:
-        time.sleep(2.0)   # let instance locks / UDP ports / DDS discovery settle
+        time.sleep(2.0)  # let instance locks / UDP ports / DDS discovery settle
 
 
 # Interceptor identity (see plan: spawn scheme table)
@@ -128,7 +150,7 @@ AUTOSTART_ID = '4420'
 INSTANCE_ID = '0'
 # PX4 SITL port convention: instance i -> listen 14540+i, remote 14557+i.
 FCU_URL = 'udp://:14540@127.0.0.1:14557'
-TGT_SYSTEM = '1'   # PX4 MAV_SYS_ID = instance_id + 1
+TGT_SYSTEM = '1'  # PX4 MAV_SYS_ID = instance_id + 1
 
 
 def launch_setup(context, *args, **kwargs):
@@ -193,11 +215,18 @@ def launch_setup(context, *args, **kwargs):
     # discovery.
     rmw = os.environ.get('RMW_IMPLEMENTATION', '')
     if 'zenoh' in rmw:
-        actions.append(ExecuteProcess(
-            cmd=['bash', '-c',
-                 'pgrep -f rmw_zenohd >/dev/null 2>&1 || '
-                 'exec ros2 run rmw_zenoh_cpp rmw_zenohd'],
-            name='zenoh_router', output='log'))
+        actions.append(
+            ExecuteProcess(
+                cmd=[
+                    'bash',
+                    '-c',
+                    'pgrep -f rmw_zenohd >/dev/null 2>&1 || '
+                    'exec ros2 run rmw_zenoh_cpp rmw_zenohd',
+                ],
+                name='zenoh_router',
+                output='log',
+            )
+        )
 
     # Make headless real: PX4's px4-rc.simulator starts the gz GUI unless the
     # HEADLESS env var is non-empty. It must be in the px4 PROCESS environment,
@@ -210,10 +239,9 @@ def launch_setup(context, *args, **kwargs):
 
     # PX4 SITL + Gazebo (this instance spawns the shared server)
     gz_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uavros2'),
-                                  'launch', 'gz_sim.launch.py'])
-        ]),
+        PythonLaunchDescriptionSource(
+            [PathJoinSubstitution([FindPackageShare('uavros2'), 'launch', 'gz_sim.launch.py'])]
+        ),
         launch_arguments={
             'gz_ns': NS,
             'headless': headless,
@@ -221,63 +249,87 @@ def launch_setup(context, *args, **kwargs):
             'gz_world': gz_world,
             'px4_autostart_id': autostart,
             'instance_id': INSTANCE_ID,
-            'xpos': xpos, 'ypos': ypos, 'zpos': zpos,
-        }.items()
+            'xpos': xpos,
+            'ypos': ypos,
+            'zpos': zpos,
+        }.items(),
     )
     actions.append(gz_launch)
 
     # MAVROS
     mavros_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uavros2'),
-                                  'launch', 'mavros.launch.py'])
-        ]),
+        PythonLaunchDescriptionSource(
+            [PathJoinSubstitution([FindPackageShare('uavros2'), 'launch', 'mavros.launch.py'])]
+        ),
         launch_arguments={
             'mavros_namespace': NS + '/mavros',
             'tgt_system': TGT_SYSTEM,
             'fcu_url': FCU_URL,
-            'pluginlists_yaml': os.path.join(pkg_share, 'config', 'mavros',
-                                             'interceptor_px4_pluginlists.yaml'),
-            'config_yaml': os.path.join(pkg_share, 'config', 'mavros',
-                                        'interceptor_px4_config.yaml'),
+            'pluginlists_yaml': os.path.join(
+                pkg_share, 'config', 'mavros', 'interceptor_px4_pluginlists.yaml'
+            ),
+            'config_yaml': os.path.join(
+                pkg_share, 'config', 'mavros', 'interceptor_px4_config.yaml'
+            ),
             'base_link_frame': NS + '/base_link',
             'odom_frame': NS + '/odom',
             'map_frame': 'map',
-        }.items()
+        }.items(),
     )
     actions.append(mavros_launch)
 
     # --- TF tree ---
-    actions.append(Node(
-        package='tf2_ros', executable='static_transform_publisher',
-        name='map2global_tf_node',
-        arguments=['0', '0', '0', '0', '0', '0', 'global', 'map'],
-        parameters=[{'use_sim_time': True}], output='log'))
+    actions.append(
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='map2global_tf_node',
+            arguments=['0', '0', '0', '0', '0', '0', 'global', 'map'],
+            parameters=[{'use_sim_time': True}],
+            output='log',
+        )
+    )
 
-    actions.append(Node(
-        package='tf2_ros', executable='static_transform_publisher',
-        name='map2map_frd_tf_node',
-        arguments=['0', '0', '0', '1.5708', '0', '1.5708', 'map', 'map_frd'],
-        parameters=[{'use_sim_time': True}], output='log'))
+    actions.append(
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='map2map_frd_tf_node',
+            arguments=['0', '0', '0', '1.5708', '0', '1.5708', 'map', 'map_frd'],
+            parameters=[{'use_sim_time': True}],
+            output='log',
+        )
+    )
 
-    actions.append(Node(
-        package='tf2_ros', executable='static_transform_publisher',
-        name='map2px4_' + NS + '_tf_node',
-        arguments=['0', '0', '0', '0', '0', '0', 'map', NS + '/odom'],
-        parameters=[{'use_sim_time': True}], output='log'))
+    actions.append(
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='map2px4_' + NS + '_tf_node',
+            arguments=['0', '0', '0', '0', '0', '0', 'map', NS + '/odom'],
+            parameters=[{'use_sim_time': True}],
+            output='log',
+        )
+    )
 
     # Dynamic odom->base_link from MAVROS local pose (reuse uavros2 tf_relay)
-    actions.append(Node(
-        package='uavros2', executable='tf_relay',
-        name='odom2base_tf_relay', namespace=NS,
-        parameters=[
-            {'use_sim_time': True},
-            {'source_topic': f'/{NS}/mavros/local_position/pose'},
-            {'target_frame_id': f'{NS}/odom'},
-            {'child_frame_id': f'{NS}/base_link'},
-            {'queue_size': 50},
-            {'publish_rate': 50.0},
-        ], output='log'))
+    actions.append(
+        Node(
+            package='uavros2',
+            executable='tf_relay',
+            name='odom2base_tf_relay',
+            namespace=NS,
+            parameters=[
+                {'use_sim_time': True},
+                {'source_topic': f'/{NS}/mavros/local_position/pose'},
+                {'target_frame_id': f'{NS}/odom'},
+                {'child_frame_id': f'{NS}/base_link'},
+                {'queue_size': 50},
+                {'publish_rate': 50.0},
+            ],
+            output='log',
+        )
+    )
 
     # Sensor bridge. /clock is always needed; the D435 depth-camera topics are
     # added only with gpu:=true (the camera needs gz GL rendering).
@@ -289,10 +341,14 @@ def launch_setup(context, *args, **kwargs):
             '/d435/points@sensor_msgs/msg/PointCloud2[ignition.msgs.PointCloudPacked',
             '/d435/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo',
             '--ros-args',
-            '-r', '/d435/depth_image:=' + NS + '/depth_image',
-            '-r', '/d435/image:=' + NS + '/image',
-            '-r', '/d435/points:=' + NS + '/points',
-            '-r', '/d435/camera_info:=' + NS + '/camera_info',
+            '-r',
+            '/d435/depth_image:=' + NS + '/depth_image',
+            '-r',
+            '/d435/image:=' + NS + '/image',
+            '-r',
+            '/d435/points:=' + NS + '/points',
+            '-r',
+            '/d435/camera_info:=' + NS + '/camera_info',
         ]
     # Start the bridge only once the gz server publishes /clock. Started with the
     # launch (seconds before PX4 brings the server up) it sometimes never passed
@@ -300,73 +356,116 @@ def launch_setup(context, *args, **kwargs):
     # froze, so the target node never streamed setpoints or asked for OFFBOARD
     # and the target stayed disarmed on the ground. A bridge started later
     # always delivered.
-    wait_for_gz_clock = ("bash -c 'until timeout 5 gz topic -l | grep -qx /clock; "
-                         "do sleep 0.5; done; exec \"$@\"' --")
-    actions.append(Node(
-        package='ros_gz_bridge', executable='parameter_bridge',
-        name='interceptor_depthcam_bridge',
-        arguments=bridge_args, prefix=wait_for_gz_clock,
-        parameters=[{'use_sim_time': True}], output='log'))
+    wait_for_gz_clock = (
+        "bash -c 'until timeout 5 gz topic -l | grep -qx /clock; "
+        "do sleep 0.5; done; exec \"$@\"' --"
+    )
+    actions.append(
+        Node(
+            package='ros_gz_bridge',
+            executable='parameter_bridge',
+            name='interceptor_depthcam_bridge',
+            arguments=bridge_args,
+            prefix=wait_for_gz_clock,
+            parameters=[{'use_sim_time': True}],
+            output='log',
+        )
+    )
 
     # Body markers for RViz (no URDF; attached to base_link via TF). Default to
     # the FULL real x500 model parsed from its SDF; marker_mesh:=none -> animated
     # geometric quad; marker_mesh:=file://... -> a single custom mesh.
     marker_mesh = LaunchConfiguration('marker_mesh').perform(context)
-    mk_params = [{'use_sim_time': True},
-                 {'frame_id': NS + '/base_link'},
-                 {'marker_ns': NS},
-                 {'color': [0.1, 0.4, 1.0]},   # interceptor = blue (geom fallback)
-                 {'arm_length': 0.25}]          # x500 rotor radius (geom fallback)
+    mk_params = [
+        {'use_sim_time': True},
+        {'frame_id': NS + '/base_link'},
+        {'marker_ns': NS},
+        {'color': [0.1, 0.4, 1.0]},  # interceptor = blue (geom fallback)
+        {'arm_length': 0.25},
+    ]  # x500 rotor radius (geom fallback)
     if marker_mesh == 'none':
-        pass                                    # geometric quad
+        pass  # geometric quad
     elif marker_mesh:
-        mk_params.append({'mesh_resource': marker_mesh})   # single custom mesh
+        mk_params.append({'mesh_resource': marker_mesh})  # single custom mesh
     elif px4_dir:
         models = px4_dir + '/Tools/simulation/gz/models'
-        mk_params += [{'model_sdf': models + '/x500_base/model.sdf'},
-                      {'model_dir': models}]
-    actions.append(Node(
-        package='drone_interception_sim', executable='drone_markers',
-        name='drone_markers', namespace=NS, parameters=mk_params, output='log'))
+        mk_params += [{'model_sdf': models + '/x500_base/model.sdf'}, {'model_dir': models}]
+    actions.append(
+        Node(
+            package='drone_interception_sim',
+            executable='drone_markers',
+            name='drone_markers',
+            namespace=NS,
+            parameters=mk_params,
+            output='log',
+        )
+    )
 
     # RViz (optional)
     rviz_file = os.path.join(pkg_share, 'rviz', 'interception.rviz')
-    actions.append(Node(
-        package='rviz2', executable='rviz2', name='rviz2',
-        condition=IfCondition(LaunchConfiguration('use_rviz')),
-        arguments=['-d', rviz_file],
-        parameters=[{'use_sim_time': True},
-                    {'tf_buffer_cache_time_ms': 60000},
-                    {'transform_tolerance': 5.0}],
-        output='log'))
+    actions.append(
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            condition=IfCondition(LaunchConfiguration('use_rviz')),
+            arguments=['-d', rviz_file],
+            parameters=[
+                {'use_sim_time': True},
+                {'tf_buffer_cache_time_ms': 60000},
+                {'transform_tolerance': 5.0},
+            ],
+            output='log',
+        )
+    )
 
     return actions
 
 
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument('headless', default_value='0'),
-        DeclareLaunchArgument('gz_world', default_value='interception'),
-        DeclareLaunchArgument('use_rviz', default_value='true'),
-        DeclareLaunchArgument('xpos', default_value='0.0'),
-        DeclareLaunchArgument('ypos', default_value='0.0'),
-        DeclareLaunchArgument('zpos', default_value='0.1'),
-        DeclareLaunchArgument('px4_dir', default_value=DEFAULT_PX4_DIR,
-                              description='PX4-Autopilot dir (in-tree by default)'),
-        DeclareLaunchArgument('gz_partition', default_value=DEFAULT_GZ_PARTITION,
-                              description='Gazebo transport partition (isolates this sim; '
-                                          'empty = default partition)'),
-        DeclareLaunchArgument('ros_domain_id', default_value=DEFAULT_ROS_DOMAIN_ID,
-                              description='ROS_DOMAIN_ID isolating this sim (esp. /clock); '
-                                          'empty = inherit. Match it in all terminals.'),
-        DeclareLaunchArgument('software_gl', default_value='false',
-                              description='true = CPU (Mesa) rendering for RViz/gz when the '
-                                          'GPU GL stack is broken'),
-        DeclareLaunchArgument('gpu', default_value='true',
-                              description='false = camera-less x500 interceptor so gz needs no '
-                                          'GL (run with no GPU; faster for RL)'),
-        DeclareLaunchArgument('marker_mesh', default_value='',
-                              description="RViz body mesh: '' = real x500 mesh (default), "
-                                          "'none' = animated geometric quad, or a file:// URI"),
-        OpaqueFunction(function=launch_setup),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument('headless', default_value='0'),
+            DeclareLaunchArgument('gz_world', default_value='interception'),
+            DeclareLaunchArgument('use_rviz', default_value='true'),
+            DeclareLaunchArgument('xpos', default_value='0.0'),
+            DeclareLaunchArgument('ypos', default_value='0.0'),
+            DeclareLaunchArgument('zpos', default_value='0.1'),
+            DeclareLaunchArgument(
+                'px4_dir',
+                default_value=DEFAULT_PX4_DIR,
+                description='PX4-Autopilot dir (in-tree by default)',
+            ),
+            DeclareLaunchArgument(
+                'gz_partition',
+                default_value=DEFAULT_GZ_PARTITION,
+                description='Gazebo transport partition (isolates this sim; '
+                'empty = default partition)',
+            ),
+            DeclareLaunchArgument(
+                'ros_domain_id',
+                default_value=DEFAULT_ROS_DOMAIN_ID,
+                description='ROS_DOMAIN_ID isolating this sim (esp. /clock); '
+                'empty = inherit. Match it in all terminals.',
+            ),
+            DeclareLaunchArgument(
+                'software_gl',
+                default_value='false',
+                description='true = CPU (Mesa) rendering for RViz/gz when the '
+                'GPU GL stack is broken',
+            ),
+            DeclareLaunchArgument(
+                'gpu',
+                default_value='true',
+                description='false = camera-less x500 interceptor so gz needs no '
+                'GL (run with no GPU; faster for RL)',
+            ),
+            DeclareLaunchArgument(
+                'marker_mesh',
+                default_value='',
+                description="RViz body mesh: '' = real x500 mesh (default), "
+                "'none' = animated geometric quad, or a file:// URI",
+            ),
+            OpaqueFunction(function=launch_setup),
+        ]
+    )

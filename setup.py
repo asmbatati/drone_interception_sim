@@ -1,6 +1,7 @@
-import os
 from glob import glob
-from setuptools import setup, find_packages
+import os
+
+from setuptools import find_packages, setup
 
 package_name = 'drone_interception_sim'
 
@@ -8,7 +9,8 @@ package_name = 'drone_interception_sim'
 def recursive_data_files(directory):
     return [
         (os.path.join('share', package_name, root), [os.path.join(root, file) for file in files])
-        for root, _, files in os.walk(directory) if files
+        for root, _, files in os.walk(directory)
+        if files
     ]
 
 
@@ -22,8 +24,11 @@ setup(
         *recursive_data_files('config'),
         *recursive_data_files('launch'),
         (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
-        *([(os.path.join('share', package_name, 'worlds'), glob('worlds/*'))]
-          if os.path.exists('worlds') and glob('worlds/*') else []),
+        *(
+            [(os.path.join('share', package_name, 'worlds'), glob('worlds/*'))]
+            if os.path.exists('worlds') and glob('worlds/*')
+            else []
+        ),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

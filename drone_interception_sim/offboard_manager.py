@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Offboard/arm manager for the interception pipeline.
+"""
+Offboard/arm manager for the interception pipeline.
 
 The control stage streams setpoints to mavros/setpoint_raw/local but does not
 arm or change mode (that is the mission controller's job). For a self-contained
@@ -9,10 +10,11 @@ the FCU is connected, switches to OFFBOARD and arms — so the interceptor flies
 the pipeline's setpoints. It never publishes setpoints itself (no conflict with
 the control stage).
 """
-import rclpy
-from rclpy.node import Node
+
 from mavros_msgs.msg import PositionTarget, State
 from mavros_msgs.srv import CommandBool, SetMode
+import rclpy
+from rclpy.node import Node
 
 
 class OffboardManager(Node):
@@ -26,8 +28,7 @@ class OffboardManager(Node):
         self.create_subscription(State, 'mavros/state', self._state_cb, 10)
         # Match the control stage's reliable publisher (depth 10) so the
         # setpoint count is reliable under FastRTPS.
-        self.create_subscription(PositionTarget, 'mavros/setpoint_raw/local',
-                                 self._sp_cb, 10)
+        self.create_subscription(PositionTarget, 'mavros/setpoint_raw/local', self._sp_cb, 10)
 
         self.arming_client_ = self.create_client(CommandBool, 'mavros/cmd/arming')
         self.set_mode_client_ = self.create_client(SetMode, 'mavros/set_mode')
@@ -66,8 +67,7 @@ class OffboardManager(Node):
             if resp.success:
                 self.get_logger().info('Interceptor armed; flying the pipeline.')
             else:
-                self.get_logger().warn(
-                    f'Interceptor arm rejected (result={resp.result}).')
+                self.get_logger().warn(f'Interceptor arm rejected (result={resp.result}).')
         except Exception as e:  # noqa: BLE001
             self.get_logger().error(f'arm service call failed: {e}')
 

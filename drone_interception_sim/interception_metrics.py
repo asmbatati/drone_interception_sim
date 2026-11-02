@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Method-agnostic interception metrics / benchmark logger.
+"""
+Method-agnostic interception metrics / benchmark logger.
 
 Works regardless of which controller drives the interceptor (PN strategy, FSM,
 Behaviour Tree, or RL): it just watches both drones' odometry and records the
@@ -36,6 +37,7 @@ Launch under the interceptor namespace (or remap the two odom topics). Both
 odometries are in their own EKF/spawn frame, so spawn offsets are added to get a
 common frame (defaults match drone_interception_sim).
 """
+
 import csv
 import math
 
@@ -75,7 +77,7 @@ class InterceptionMetrics(Node):
         self.landed_height = float(self.get_parameter('landed_height').value)
         self.z0 = None
         self.t_landed = None
-        self._recent = []   # (t, x, y) over the last second, for 'stopped'
+        self._recent = []  # (t, x, y) over the last second, for 'stopped'
         self.scenario = str(self.get_parameter('scenario').value)
         self.trial = int(self.get_parameter('trial').value)
         self.t_engage = None
@@ -87,10 +89,10 @@ class InterceptionMetrics(Node):
         self.captured = False
         self.done = False
 
-        self.create_subscription(Odometry, 'interceptor_odom',
-                                 self._int_cb, qos_profile_sensor_data)
-        self.create_subscription(Odometry, 'target_odom',
-                                 self._tgt_cb, qos_profile_sensor_data)
+        self.create_subscription(
+            Odometry, 'interceptor_odom', self._int_cb, qos_profile_sensor_data
+        )
+        self.create_subscription(Odometry, 'target_odom', self._tgt_cb, qos_profile_sensor_data)
 
         self._csv = open(self.csv_path, 'w', newline='')
         self._writer = csv.writer(self._csv)
@@ -98,8 +100,9 @@ class InterceptionMetrics(Node):
 
         self.create_timer(0.1, self._tick)
         self.get_logger().info(
-            f"Metrics started (method={self.method}, capture_radius="
-            f"{self.capture_radius} m) -> {self.csv_path}")
+            f'Metrics started (method={self.method}, capture_radius='
+            f'{self.capture_radius} m) -> {self.csv_path}'
+        )
 
     def _int_cb(self, msg):
         self.interceptor = msg
@@ -130,15 +133,23 @@ class InterceptionMetrics(Node):
             self.z0 = iz
         if self.t_engage is None and iz >= self.z0 + self.liftoff_height:
             self.t_engage = t
-        self._writer.writerow([f'{t:.3f}', f'{rng:.4f}',
-                               f'{ix:.3f}', f'{iy:.3f}', f'{iz:.3f}',
-                               f'{tx:.3f}', f'{ty:.3f}', f'{tz:.3f}'])
+        self._writer.writerow(
+            [
+                f'{t:.3f}',
+                f'{rng:.4f}',
+                f'{ix:.3f}',
+                f'{iy:.3f}',
+                f'{iz:.3f}',
+                f'{tx:.3f}',
+                f'{ty:.3f}',
+                f'{tz:.3f}',
+            ]
+        )
         self._csv.flush()
 
         self._recent = [r for r in self._recent if t - r[0] <= 1.0] + [(t, ix, iy)]
         moved = math.hypot(ix - self._recent[0][1], iy - self._recent[0][2])
-        if (self.t_engage is not None and iz < self.z0 + self.landed_height
-                and moved < 0.5):
+        if self.t_engage is not None and iz < self.z0 + self.landed_height and moved < 0.5:
             self.t_landed = t if self.t_landed is None else self.t_landed
         else:
             self.t_landed = None
@@ -154,14 +165,15 @@ class InterceptionMetrics(Node):
     def _finish(self, outcome, t):
         self.done = True
         self.get_logger().info(
-            f"\n==== Interception result ({self.method}) ====\n"
-            f"  outcome           : {outcome}\n"
-            f"  time_to_intercept : {t:.2f} s\n"
-            f"  time_engaged      : {self._engaged(t)}\n"
-            f"  min_range         : {self.min_range:.2f} m\n"
-            f"  capture_radius    : {self.capture_radius} m\n"
-            f"  csv               : {self.csv_path}\n"
-            f"=============================================")
+            f'\n==== Interception result ({self.method}) ====\n'
+            f'  outcome           : {outcome}\n'
+            f'  time_to_intercept : {t:.2f} s\n'
+            f'  time_engaged      : {self._engaged(t)}\n'
+            f'  min_range         : {self.min_range:.2f} m\n'
+            f'  capture_radius    : {self.capture_radius} m\n'
+            f'  csv               : {self.csv_path}\n'
+            f'============================================='
+        )
         try:
             self._csv.flush()
             self._csv.close()
@@ -178,21 +190,40 @@ class InterceptionMetrics(Node):
         """Append one row to the cross-method benchmark table."""
         try:
             import os
+
             new = not os.path.exists(self.summary_csv_path)
             with open(self.summary_csv_path, 'a', newline='') as f:
                 w = csv.writer(f)
                 if new:
-                    w.writerow(['method', 'outcome', 'time_to_intercept_s',
-                                'min_range_m', 'capture_radius_m', 'trace_csv',
-                                'time_engaged_s', 'scenario', 'trial'])
-                w.writerow([self.method, outcome, f'{t:.2f}',
-                            f'{self.min_range:.3f}', self.capture_radius,
-                            self.csv_path, self._engaged(t), self.scenario,
-                            self.trial])
-            self.get_logger().info(
-                f"summary row appended -> {self.summary_csv_path}")
+                    w.writerow(
+                        [
+                            'method',
+                            'outcome',
+                            'time_to_intercept_s',
+                            'min_range_m',
+                            'capture_radius_m',
+                            'trace_csv',
+                            'time_engaged_s',
+                            'scenario',
+                            'trial',
+                        ]
+                    )
+                w.writerow(
+                    [
+                        self.method,
+                        outcome,
+                        f'{t:.2f}',
+                        f'{self.min_range:.3f}',
+                        self.capture_radius,
+                        self.csv_path,
+                        self._engaged(t),
+                        self.scenario,
+                        self.trial,
+                    ]
+                )
+            self.get_logger().info(f'summary row appended -> {self.summary_csv_path}')
         except Exception as e:
-            self.get_logger().warn(f"could not append summary: {e}")
+            self.get_logger().warn(f'could not append summary: {e}')
 
 
 def main(args=None):

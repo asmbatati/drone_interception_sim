@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Bring up the TARGET drone (PX4 instance 1).
+"""
+Bring up the TARGET drone (PX4 instance 1).
 
 This launch must run AFTER interceptor.launch.py so that PX4 attaches the
 target model to the already-running Gazebo server instead of spawning a second
 one. It therefore does NOT carry the world or RViz - only the model, MAVROS,
 TF, and the scripted trajectory node that flies the target autonomously.
 """
+
 import os
 
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            OpaqueFunction)
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -38,7 +38,7 @@ AUTOSTART_ID = '4421'
 INSTANCE_ID = '1'
 # PX4 SITL port convention: instance i -> listen 14540+i, remote 14557+i.
 FCU_URL = 'udp://:14541@127.0.0.1:14558'
-TGT_SYSTEM = '2'   # PX4 MAV_SYS_ID = instance_id + 1
+TGT_SYSTEM = '2'  # PX4 MAV_SYS_ID = instance_id + 1
 
 
 def launch_setup(context, *args, **kwargs):
@@ -71,130 +71,195 @@ def launch_setup(context, *args, **kwargs):
     actions = []
 
     # PX4 SITL (attaches to the interceptor's already-running Gazebo server)
-    actions.append(IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uavros2'),
-                                  'launch', 'gz_sim.launch.py'])
-        ]),
-        launch_arguments={
-            'gz_ns': NS,
-            'headless': headless,
-            'gz_model_name': MODEL,
-            'gz_world': gz_world,
-            'px4_autostart_id': AUTOSTART_ID,
-            'instance_id': INSTANCE_ID,
-            'xpos': xpos, 'ypos': ypos, 'zpos': zpos,
-        }.items()))
+    actions.append(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                [PathJoinSubstitution([FindPackageShare('uavros2'), 'launch', 'gz_sim.launch.py'])]
+            ),
+            launch_arguments={
+                'gz_ns': NS,
+                'headless': headless,
+                'gz_model_name': MODEL,
+                'gz_world': gz_world,
+                'px4_autostart_id': AUTOSTART_ID,
+                'instance_id': INSTANCE_ID,
+                'xpos': xpos,
+                'ypos': ypos,
+                'zpos': zpos,
+            }.items(),
+        )
+    )
 
     # MAVROS
-    actions.append(IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uavros2'),
-                                  'launch', 'mavros.launch.py'])
-        ]),
-        launch_arguments={
-            'mavros_namespace': NS + '/mavros',
-            'tgt_system': TGT_SYSTEM,
-            'fcu_url': FCU_URL,
-            'pluginlists_yaml': os.path.join(pkg_share, 'config', 'mavros',
-                                             'target_px4_pluginlists.yaml'),
-            'config_yaml': os.path.join(pkg_share, 'config', 'mavros',
-                                        'target_px4_config.yaml'),
-            'base_link_frame': NS + '/base_link',
-            'odom_frame': NS + '/odom',
-            'map_frame': 'map',
-        }.items()))
+    actions.append(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                [PathJoinSubstitution([FindPackageShare('uavros2'), 'launch', 'mavros.launch.py'])]
+            ),
+            launch_arguments={
+                'mavros_namespace': NS + '/mavros',
+                'tgt_system': TGT_SYSTEM,
+                'fcu_url': FCU_URL,
+                'pluginlists_yaml': os.path.join(
+                    pkg_share, 'config', 'mavros', 'target_px4_pluginlists.yaml'
+                ),
+                'config_yaml': os.path.join(
+                    pkg_share, 'config', 'mavros', 'target_px4_config.yaml'
+                ),
+                'base_link_frame': NS + '/base_link',
+                'odom_frame': NS + '/odom',
+                'map_frame': 'map',
+            }.items(),
+        )
+    )
 
     # --- TF tree (target only; map/global/map_frd come from interceptor launch) ---
     # Offset map->target/odom by the spawn pose so RViz shows the target at its
     # true world location (its EKF/odom origin is at its spawn point).
-    actions.append(Node(
-        package='tf2_ros', executable='static_transform_publisher',
-        name='map2px4_' + NS + '_tf_node',
-        arguments=[xpos, ypos, zpos, '0', '0', '0', 'map', NS + '/odom'],
-        parameters=[{'use_sim_time': True}], output='log'))
+    actions.append(
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='map2px4_' + NS + '_tf_node',
+            arguments=[xpos, ypos, zpos, '0', '0', '0', 'map', NS + '/odom'],
+            parameters=[{'use_sim_time': True}],
+            output='log',
+        )
+    )
 
-    actions.append(Node(
-        package='uavros2', executable='tf_relay',
-        name='odom2base_tf_relay', namespace=NS,
-        parameters=[
-            {'use_sim_time': True},
-            {'source_topic': f'/{NS}/mavros/local_position/pose'},
-            {'target_frame_id': f'{NS}/odom'},
-            {'child_frame_id': f'{NS}/base_link'},
-            {'queue_size': 50},
-            {'publish_rate': 50.0},
-        ], output='log'))
+    actions.append(
+        Node(
+            package='uavros2',
+            executable='tf_relay',
+            name='odom2base_tf_relay',
+            namespace=NS,
+            parameters=[
+                {'use_sim_time': True},
+                {'source_topic': f'/{NS}/mavros/local_position/pose'},
+                {'target_frame_id': f'{NS}/odom'},
+                {'child_frame_id': f'{NS}/base_link'},
+                {'queue_size': 50},
+                {'publish_rate': 50.0},
+            ],
+            output='log',
+        )
+    )
 
     # Body markers for RViz (no URDF; attached to base_link via TF). Default to
     # the FULL real x3 model parsed from its SDF (which carries the prop mesh
     # scale=0.1 etc.); marker_mesh:=none -> geometric quad; file://... -> custom.
     marker_mesh = LaunchConfiguration('marker_mesh').perform(context)
-    mk_params = [{'use_sim_time': True},
-                 {'frame_id': NS + '/base_link'},
-                 {'marker_ns': NS},
-                 {'color': [1.0, 0.2, 0.1]},   # target = red (geom fallback)
-                 {'arm_length': 0.16}]          # x3 small quad (geom fallback)
+    mk_params = [
+        {'use_sim_time': True},
+        {'frame_id': NS + '/base_link'},
+        {'marker_ns': NS},
+        {'color': [1.0, 0.2, 0.1]},  # target = red (geom fallback)
+        {'arm_length': 0.16},
+    ]  # x3 small quad (geom fallback)
     if marker_mesh == 'none':
-        pass                                    # geometric quad
+        pass  # geometric quad
     elif marker_mesh:
-        mk_params.append({'mesh_resource': marker_mesh})   # single custom mesh
+        mk_params.append({'mesh_resource': marker_mesh})  # single custom mesh
     elif px4_dir:
         models = px4_dir + '/Tools/simulation/gz/models'
-        mk_params += [{'model_sdf': models + '/x3_uav/model.sdf'},
-                      {'model_dir': models}]
-    actions.append(Node(
-        package='drone_interception_sim', executable='drone_markers',
-        name='drone_markers', namespace=NS, parameters=mk_params, output='log'))
+        mk_params += [{'model_sdf': models + '/x3_uav/model.sdf'}, {'model_dir': models}]
+    actions.append(
+        Node(
+            package='drone_interception_sim',
+            executable='drone_markers',
+            name='drone_markers',
+            namespace=NS,
+            parameters=mk_params,
+            output='log',
+        )
+    )
 
     # Scripted autonomous target flight (evasion optional; see config). Non-empty
     # target_* launch args override the YAML, so benchmark campaigns can switch
     # scenario without editing the config.
     overrides = {'use_sim_time': True}
-    casts = {'trajectory_type': str, 'radius': float, 'omega': float,
-             'evade': lambda v: v.lower() in ('1', 'true', 'yes')}
-    for arg, key in (('target_trajectory', 'trajectory_type'),
-                     ('target_radius', 'radius'), ('target_omega', 'omega'),
-                     ('target_evade', 'evade')):
+    casts = {
+        'trajectory_type': str,
+        'radius': float,
+        'omega': float,
+        'evade': lambda v: v.lower() in ('1', 'true', 'yes'),
+    }
+    for arg, key in (
+        ('target_trajectory', 'trajectory_type'),
+        ('target_radius', 'radius'),
+        ('target_omega', 'omega'),
+        ('target_evade', 'evade'),
+    ):
         val = LaunchConfiguration(arg).perform(context)
         if val:
             overrides[key] = casts[key](val)
-    actions.append(Node(
-        package='drone_interception_sim', executable='target_trajectory',
-        name='target_trajectory_node', namespace=NS,
-        parameters=[
-            os.path.join(pkg_share, 'config', 'target_trajectory.yaml'),
-            overrides,
-        ],
-        remappings=[('interceptor_odom', '/interceptor/mavros/local_position/odom')],
-        output='screen'))
+    actions.append(
+        Node(
+            package='drone_interception_sim',
+            executable='target_trajectory',
+            name='target_trajectory_node',
+            namespace=NS,
+            parameters=[
+                os.path.join(pkg_share, 'config', 'target_trajectory.yaml'),
+                overrides,
+            ],
+            remappings=[('interceptor_odom', '/interceptor/mavros/local_position/odom')],
+            output='screen',
+        )
+    )
 
     return actions
 
 
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument('headless', default_value='0'),
-        DeclareLaunchArgument('gz_world', default_value='interception'),
-        DeclareLaunchArgument('xpos', default_value='10.0'),
-        DeclareLaunchArgument('ypos', default_value='0.0'),
-        DeclareLaunchArgument('zpos', default_value='0.1'),
-        DeclareLaunchArgument('px4_dir', default_value=DEFAULT_PX4_DIR,
-                              description='PX4-Autopilot dir (in-tree by default)'),
-        DeclareLaunchArgument('gz_partition', default_value=DEFAULT_GZ_PARTITION,
-                              description='Gazebo transport partition (must match interceptor)'),
-        DeclareLaunchArgument('target_trajectory', default_value='',
-                              description="override: 'circle' | 'infty' ('' = YAML)"),
-        DeclareLaunchArgument('target_radius', default_value='',
-                              description="override path radius, m ('' = YAML)"),
-        DeclareLaunchArgument('target_omega', default_value='',
-                              description="override angular speed, rad/s ('' = YAML)"),
-        DeclareLaunchArgument('target_evade', default_value='',
-                              description="override reactive evasion: true|false ('' = YAML)"),
-        DeclareLaunchArgument('ros_domain_id', default_value=DEFAULT_ROS_DOMAIN_ID,
-                              description='ROS_DOMAIN_ID (must match interceptor)'),
-        DeclareLaunchArgument('marker_mesh', default_value='',
-                              description="RViz body mesh: '' = real x3 mesh (default), "
-                                          "'none' = geometric quad, or a file:// URI"),
-        OpaqueFunction(function=launch_setup),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument('headless', default_value='0'),
+            DeclareLaunchArgument('gz_world', default_value='interception'),
+            DeclareLaunchArgument('xpos', default_value='10.0'),
+            DeclareLaunchArgument('ypos', default_value='0.0'),
+            DeclareLaunchArgument('zpos', default_value='0.1'),
+            DeclareLaunchArgument(
+                'px4_dir',
+                default_value=DEFAULT_PX4_DIR,
+                description='PX4-Autopilot dir (in-tree by default)',
+            ),
+            DeclareLaunchArgument(
+                'gz_partition',
+                default_value=DEFAULT_GZ_PARTITION,
+                description='Gazebo transport partition (must match interceptor)',
+            ),
+            DeclareLaunchArgument(
+                'target_trajectory',
+                default_value='',
+                description="override: 'circle' | 'infty' ('' = YAML)",
+            ),
+            DeclareLaunchArgument(
+                'target_radius',
+                default_value='',
+                description="override path radius, m ('' = YAML)",
+            ),
+            DeclareLaunchArgument(
+                'target_omega',
+                default_value='',
+                description="override angular speed, rad/s ('' = YAML)",
+            ),
+            DeclareLaunchArgument(
+                'target_evade',
+                default_value='',
+                description="override reactive evasion: true|false ('' = YAML)",
+            ),
+            DeclareLaunchArgument(
+                'ros_domain_id',
+                default_value=DEFAULT_ROS_DOMAIN_ID,
+                description='ROS_DOMAIN_ID (must match interceptor)',
+            ),
+            DeclareLaunchArgument(
+                'marker_mesh',
+                default_value='',
+                description="RViz body mesh: '' = real x3 mesh (default), "
+                "'none' = geometric quad, or a file:// URI",
+            ),
+            OpaqueFunction(function=launch_setup),
+        ]
+    )

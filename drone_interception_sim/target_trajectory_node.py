@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Scripted target drone that flies a closed trajectory (circle / figure-8).
+"""
+Scripted target drone that flies a closed trajectory (circle / figure-8).
 
 Re-homed and extended from the retired d2dtracker_sim/offboard_control_node.py.
 Unlike the original (which only streamed setpoints and relied on an external
@@ -9,6 +10,7 @@ auto-switches the FCU to OFFBOARD and arms it, so the target flies on its own.
 All topics/services are relative, so the node works under any namespace
 (e.g. launched under `target` -> /target/mavros/...).
 """
+
 from geometry_msgs.msg import PoseStamped
 from mavros_msgs.msg import PositionTarget, State, StatusText
 from mavros_msgs.srv import CommandBool, SetMode
@@ -17,8 +19,13 @@ import numpy as np
 import rclpy
 from rclpy.clock import Clock
 from rclpy.node import Node
-from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
-                       ReliabilityPolicy, qos_profile_sensor_data)
+from rclpy.qos import (
+    DurabilityPolicy,
+    HistoryPolicy,
+    qos_profile_sensor_data,
+    QoSProfile,
+    ReliabilityPolicy,
+)
 
 from .trajectories import Circle3D, Infinity3D
 
@@ -31,8 +38,8 @@ class TargetTrajectory(Node):
         self.declare_parameter('radius', 5.0)
         self.declare_parameter('omega', 0.5)
         self.declare_parameter('trajectory_type', 'circle')  # 'circle' | 'infty'
-        self.declare_parameter('normal_vector', [0., 0., 1.])
-        self.declare_parameter('center', [0., 0., 3.0])
+        self.declare_parameter('normal_vector', [0.0, 0.0, 1.0])
+        self.declare_parameter('center', [0.0, 0.0, 3.0])
         self.declare_parameter('auto_arm', True)
         # Reactive evasion: push away from the interceptor when it gets close.
         self.declare_parameter('evade', False)
@@ -55,12 +62,18 @@ class TargetTrajectory(Node):
 
         if self.trajectory_type_ == 'circle':
             self.trajectory_generator_ = Circle3D(
-                np.array(self.normal_vector_), np.array(self.center_),
-                radius=self.radius_, omega=self.omega_)
+                np.array(self.normal_vector_),
+                np.array(self.center_),
+                radius=self.radius_,
+                omega=self.omega_,
+            )
         elif self.trajectory_type_ == 'infty':
             self.trajectory_generator_ = Infinity3D(
-                np.array(self.normal_vector_), np.array(self.center_),
-                radius=self.radius_, omega=self.omega_)
+                np.array(self.normal_vector_),
+                np.array(self.center_),
+                radius=self.radius_,
+                omega=self.omega_,
+            )
         else:
             raise ValueError("trajectory_type must be 'circle' or 'infty'")
 
@@ -68,25 +81,29 @@ class TargetTrajectory(Node):
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             history=HistoryPolicy.KEEP_LAST,
-            depth=1)
+            depth=1,
+        )
 
         self.odom_ = Odometry()
         self.state_ = State()
         self.interceptor_odom_ = None
 
-        self.create_subscription(State, 'mavros/state',
-                                 self.stateCallback, qos_state)
-        self.create_subscription(Odometry, 'mavros/local_position/odom',
-                                 self.odomCallback, qos_profile_sensor_data)
+        self.create_subscription(State, 'mavros/state', self.stateCallback, qos_state)
+        self.create_subscription(
+            Odometry, 'mavros/local_position/odom', self.odomCallback, qos_profile_sensor_data
+        )
         # PX4 reports arming-denied / preflight reasons here.
-        self.create_subscription(StatusText, 'mavros/statustext/recv',
-                                 self.statusTextCallback, qos_profile_sensor_data)
+        self.create_subscription(
+            StatusText, 'mavros/statustext/recv', self.statusTextCallback, qos_profile_sensor_data
+        )
         if self.evade_:
-            self.create_subscription(Odometry, 'interceptor_odom',
-                                     self.interceptorCallback, qos_profile_sensor_data)
+            self.create_subscription(
+                Odometry, 'interceptor_odom', self.interceptorCallback, qos_profile_sensor_data
+            )
 
         self.setpoint_pub_ = self.create_publisher(
-            PositionTarget, 'mavros/setpoint_raw/local', qos_profile_sensor_data)
+            PositionTarget, 'mavros/setpoint_raw/local', qos_profile_sensor_data
+        )
         self.path_pub_ = self.create_publisher(Path, 'target_path', 10)
 
         self.arming_client_ = self.create_client(CommandBool, 'mavros/cmd/arming')
@@ -96,8 +113,8 @@ class TargetTrajectory(Node):
         self.counter_ = 0
         self.path_msg_ = Path()
 
-        self.create_timer(0.02, self.cmdloopCallback)          # 50 Hz setpoint stream
-        self.create_timer(1.0, self.armOffboardCallback)        # 1 Hz arm/mode manager
+        self.create_timer(0.02, self.cmdloopCallback)  # 50 Hz setpoint stream
+        self.create_timer(1.0, self.armOffboardCallback)  # 1 Hz arm/mode manager
 
     def stateCallback(self, msg: State):
         self.state_ = msg
@@ -119,12 +136,20 @@ class TargetTrajectory(Node):
         ip = self.interceptor_odom_.pose.pose.position
         tp = self.odom_.pose.pose.position
         # Convert both to a common (world) frame via spawn offsets.
-        i_world = np.array([ip.x + self.interceptor_spawn_[0],
-                            ip.y + self.interceptor_spawn_[1],
-                            ip.z + self.interceptor_spawn_[2]])
-        t_world = np.array([tp.x + self.target_spawn_[0],
-                            tp.y + self.target_spawn_[1],
-                            tp.z + self.target_spawn_[2]])
+        i_world = np.array(
+            [
+                ip.x + self.interceptor_spawn_[0],
+                ip.y + self.interceptor_spawn_[1],
+                ip.z + self.interceptor_spawn_[2],
+            ]
+        )
+        t_world = np.array(
+            [
+                tp.x + self.target_spawn_[0],
+                tp.y + self.target_spawn_[1],
+                tp.z + self.target_spawn_[2],
+            ]
+        )
         away = t_world - i_world
         dist = float(np.linalg.norm(away))
         if dist >= self.evade_distance_ or dist < 1e-6:
@@ -140,12 +165,14 @@ class TargetTrajectory(Node):
         # PX4 requires a setpoint stream before OFFBOARD is accepted.
         if self.counter_ < 100:
             return
-        if not (self.set_mode_client_.service_is_ready()
-                and self.arming_client_.service_is_ready()):
+        if not (
+            self.set_mode_client_.service_is_ready() and self.arming_client_.service_is_ready()
+        ):
             self.get_logger().warn(
                 f'Target: mavros/set_mode or mavros/cmd/arming not discovered yet '
                 f'(mode={self.state_.mode!r}, armed={self.state_.armed})',
-                throttle_duration_sec=10.0)
+                throttle_duration_sec=10.0,
+            )
         if self.state_.mode != 'OFFBOARD' and self.set_mode_client_.service_is_ready():
             req = SetMode.Request()
             req.custom_mode = 'OFFBOARD'
@@ -165,30 +192,39 @@ class TargetTrajectory(Node):
             if not resp.success:
                 self.get_logger().warn(
                     f'Target arm rejected (success={resp.success}, '
-                    f'result={resp.result}) - check PX4 statustext above.')
+                    f'result={resp.result}) - check PX4 statustext above.'
+                )
         except Exception as e:  # noqa: BLE001
             self.get_logger().error(f'Target arm service call failed: {e}')
 
     def cmdloopCallback(self):
         t = Clock().now().nanoseconds / 1e9 - self.t0_
-        point = np.asarray(self.trajectory_generator_.generate_trajectory_setpoint(t),
-                           dtype=float)
-        point = point + self._evasion_offset()   # zero unless evading
+        point = np.asarray(self.trajectory_generator_.generate_trajectory_setpoint(t), dtype=float)
+        point = point + self._evasion_offset()  # zero unless evading
 
         frame_id = self.odom_.header.frame_id or 'map'
         sp = PositionTarget()
         sp.header.stamp = self.get_clock().now().to_msg()
         sp.header.frame_id = frame_id
         sp.coordinate_frame = PositionTarget.FRAME_LOCAL_NED
-        sp.type_mask = (PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY +
-                        PositionTarget.IGNORE_AFZ + PositionTarget.IGNORE_VX +
-                        PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
-                        PositionTarget.IGNORE_YAW_RATE)
+        sp.type_mask = (
+            PositionTarget.IGNORE_AFX
+            + PositionTarget.IGNORE_AFY
+            + PositionTarget.IGNORE_AFZ
+            + PositionTarget.IGNORE_VX
+            + PositionTarget.IGNORE_VY
+            + PositionTarget.IGNORE_VZ
+            + PositionTarget.IGNORE_YAW_RATE
+        )
         sp.position.x = float(point[0])
         sp.position.y = float(point[1])
         sp.position.z = float(point[2])
-        sp.yaw = float(np.arctan2(point[1] - self.odom_.pose.pose.position.y,
-                                  point[0] - self.odom_.pose.pose.position.x))
+        sp.yaw = float(
+            np.arctan2(
+                point[1] - self.odom_.pose.pose.position.y,
+                point[0] - self.odom_.pose.pose.position.x,
+            )
+        )
         self.setpoint_pub_.publish(sp)
         self.counter_ += 1
 

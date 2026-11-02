@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Batch benchmark runner: N trials x methods x scenarios, unattended.
+r"""
+Batch benchmark runner: N trials x methods x scenarios, unattended.
 
 Drives the method-agnostic ``interception_metrics`` logger over a campaign
 described in a YAML file (see ``benchmarks/campaigns/*.yaml``):
@@ -36,6 +37,7 @@ resumed after an interruption.
     python3 scripts/run_benchmark.py benchmarks/campaigns/pipeline_vs_pn.yaml \\
         --out benchmarks/runs/pipeline_vs_pn
 """
+
 import argparse
 import csv
 import math
@@ -61,33 +63,36 @@ class Watch:
     """rclpy node caching both vehicles' mavros state + odometry."""
 
     def __init__(self):
-        import rclpy
         from mavros_msgs.msg import State, StatusText
         from mavros_msgs.srv import CommandBool, SetMode
         from nav_msgs.msg import Odometry
+        import rclpy
         from rclpy.qos import qos_profile_sensor_data
+
         self._rclpy = rclpy
         rclpy.init()
         self.node = rclpy.create_node('benchmark_runner')
         self.state = {}
         self.odom = {}
-        self.texts = {}   # last PX4 status texts per vehicle (arming-denied reasons)
+        self.texts = {}  # last PX4 status texts per vehicle (arming-denied reasons)
         for ns in ('interceptor', 'target'):
             self.node.create_subscription(
-                StatusText, f'/{ns}/mavros/statustext/recv',
+                StatusText,
+                f'/{ns}/mavros/statustext/recv',
                 lambda m, ns=ns: self.texts.setdefault(ns, []).append(m.text),
-                qos_profile_sensor_data)   # mavros publishes it best-effort
+                qos_profile_sensor_data,
+            )  # mavros publishes it best-effort
             self.node.create_subscription(
-                State, f'/{ns}/mavros/state',
-                lambda m, ns=ns: self.state.__setitem__(ns, m), 10)
+                State, f'/{ns}/mavros/state', lambda m, ns=ns: self.state.__setitem__(ns, m), 10
+            )
             self.node.create_subscription(
-                Odometry, f'/{ns}/mavros/local_position/odom',
+                Odometry,
+                f'/{ns}/mavros/local_position/odom',
                 lambda m, ns=ns: self.odom.__setitem__(ns, m),
-                qos_profile_sensor_data)
-        self.set_mode = self.node.create_client(
-            SetMode, '/interceptor/mavros/set_mode')
-        self.arming = self.node.create_client(
-            CommandBool, '/interceptor/mavros/cmd/arming')
+                qos_profile_sensor_data,
+            )
+        self.set_mode = self.node.create_client(SetMode, '/interceptor/mavros/set_mode')
+        self.arming = self.node.create_client(CommandBool, '/interceptor/mavros/cmd/arming')
         self._SetMode, self._CommandBool = SetMode, CommandBool
 
     def spin(self, seconds):
@@ -117,8 +122,12 @@ class Watch:
 
     def target_ok(self):
         st = self.state.get('target')
-        return (self.connected('target') and st.armed and st.mode == 'OFFBOARD'
-                and self.alt('target') > 2.0)
+        return (
+            self.connected('target')
+            and st.armed
+            and st.mode == 'OFFBOARD'
+            and self.alt('target') > 2.0
+        )
 
     def describe(self, ns):
         st = self.state.get(ns)
@@ -127,13 +136,19 @@ class Watch:
         if ns not in self.odom:
             return f'{ns}: no odometry'
         last = ' | '.join(dict.fromkeys(self.texts.get(ns, [])[-6:]))
-        return (f'{ns}: armed={st.armed} mode={st.mode} '
-                f'alt={self.alt(ns):.1f} m; PX4: {last or "-"}')
+        return (
+            f'{ns}: armed={st.armed} mode={st.mode} '
+            f'alt={self.alt(ns):.1f} m; PX4: {last or "-"}'
+        )
 
     def interceptor_home(self):
         st = self.state.get('interceptor')
-        return (self.connected('interceptor') and not st.armed
-                and self.alt('interceptor') < 0.6 and self.xy('interceptor') < 3.0)
+        return (
+            self.connected('interceptor')
+            and not st.armed
+            and self.alt('interceptor') < 0.6
+            and self.xy('interceptor') < 3.0
+        )
 
     def request_mode(self, mode):
         if self.set_mode.service_is_ready():
@@ -164,21 +179,25 @@ class Runner:
         os.makedirs(os.path.join(out, 'logs'), exist_ok=True)
         self.sim = None
         self.sim_scenario = None
-        self.px4_dir = os.path.expanduser(cfg.get(
-            'px4_dir', os.environ.get('PX4_DIR', '~/drone_interception_ws/PX4-Autopilot')))
+        self.px4_dir = os.path.expanduser(
+            cfg.get('px4_dir', os.environ.get('PX4_DIR', '~/drone_interception_ws/PX4-Autopilot'))
+        )
         self.max_retries = int(cfg.get('max_retries', 2))
         self.watch = None if dry_run else Watch()
 
     # --- process helpers -----------------------------------------------------
     def _spawn(self, argv, logname):
-        env = dict(os.environ, ROS_DOMAIN_ID=self.domain,
-                   GZ_PARTITION=self.partition,
-                   RMW_IMPLEMENTATION=os.environ.get('RMW_IMPLEMENTATION',
-                                                     'rmw_fastrtps_cpp'),
-                   RRV_SHIM_BYPASS='1')
+        env = dict(
+            os.environ,
+            ROS_DOMAIN_ID=self.domain,
+            GZ_PARTITION=self.partition,
+            RMW_IMPLEMENTATION=os.environ.get('RMW_IMPLEMENTATION', 'rmw_fastrtps_cpp'),
+            RRV_SHIM_BYPASS='1',
+        )
         f = open(os.path.join(self.out, 'logs', logname), 'w')
-        return subprocess.Popen(argv, stdout=f, stderr=subprocess.STDOUT, env=env,
-                                start_new_session=True)
+        return subprocess.Popen(
+            argv, stdout=f, stderr=subprocess.STDOUT, env=env, start_new_session=True
+        )
 
     @staticmethod
     def _stop(proc, grace=10.0):
@@ -203,15 +222,22 @@ class Runner:
 
     def stop_sim(self):
         self._stop(self.sim, grace=15.0)
-        subprocess.run([os.path.join(SCRIPTS, 'stop_sim.sh'), self.partition],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            [os.path.join(SCRIPTS, 'stop_sim.sh'), self.partition],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         self.sim = None
         self.sim_scenario = None
 
     def start_sim(self, scen):
         self.stop_sim()
-        argv = ['ros2', 'launch', 'drone_interception_sim', 'interception.launch.py'
-                ] + self._sim_args(scen)
+        argv = [
+            'ros2',
+            'launch',
+            'drone_interception_sim',
+            'interception.launch.py',
+        ] + self._sim_args(scen)
         log(f'sim start [{scen}]: {" ".join(argv[4:])}')
         self.sim = self._spawn(argv, f'sim_{scen}_{int(time.time())}.log')
         self.sim_scenario = scen
@@ -227,18 +253,19 @@ class Runner:
                 self.watch.spin(5.0)
                 self.set_px4_params()
                 return True
-        log(f'sim did not become ready in {wait:g} s '
-            f'({self.watch.describe("target")})')
+        log(f'sim did not become ready in {wait:g} s ' f'({self.watch.describe("target")})')
         return False
 
     def set_px4_params(self):
         for name, value in (self.cfg.get('px4_params') or {}).items():
-            for _ in range(5):   # the param node can lag discovery after a start
+            for _ in range(5):  # the param node can lag discovery after a start
                 r = subprocess.run(
-                    ['ros2', 'param', 'set', '/interceptor/mavros/param', name,
-                     str(value)], capture_output=True, text=True, timeout=30,
-                    env=dict(os.environ, ROS_DOMAIN_ID=self.domain,
-                             RRV_SHIM_BYPASS='1'))
+                    ['ros2', 'param', 'set', '/interceptor/mavros/param', name, str(value)],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    env=dict(os.environ, ROS_DOMAIN_ID=self.domain, RRV_SHIM_BYPASS='1'),
+                )
                 msg = (r.stdout or r.stderr).strip()
                 if 'successful' in msg:
                     break
@@ -248,33 +275,39 @@ class Runner:
     def ensure_scene(self, scen):
         """Interceptor home + disarmed, target flying; restart the sim if not."""
         for attempt in range(3):
-            if self.manage_sim and (self.sim_scenario != scen or self.sim is None
-                                    or self.sim.poll() is not None):
+            if self.manage_sim and (
+                self.sim_scenario != scen or self.sim is None or self.sim.poll() is not None
+            ):
                 if not self.start_sim(scen):
                     continue
             home = self._bring_home()
             if home and self.watch.target_ok() and self.preflight_ok():
                 return True
-            log(f'scene unhealthy (attempt {attempt + 1}): '
+            log(
+                f'scene unhealthy (attempt {attempt + 1}): '
                 f'interceptor_home={self.watch.interceptor_home()} '
-                f'target_ok={self.watch.target_ok()}')
+                f'target_ok={self.watch.target_ok()}'
+            )
             if not self.manage_sim:
                 self.watch.spin(10.0)
                 continue
-            self.sim_scenario = None   # force a restart
+            self.sim_scenario = None  # force a restart
         return False
 
     def preflight_ok(self, instance=0, tries=8):
         """PX4's preflight check on the interceptor instance (SITL client)."""
-        exe = os.path.join(self.px4_dir, 'build', 'px4_sitl_default', 'bin',
-                           'px4-commander')
+        exe = os.path.join(self.px4_dir, 'build', 'px4_sitl_default', 'bin', 'px4-commander')
         if not os.path.exists(exe):
             return True
         out = ''
         for i in range(tries):
-            r = subprocess.run([exe, '--instance', str(instance), 'check'],
-                               capture_output=True, text=True, timeout=20,
-                               cwd=os.path.dirname(os.path.dirname(exe)))
+            r = subprocess.run(
+                [exe, '--instance', str(instance), 'check'],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                cwd=os.path.dirname(os.path.dirname(exe)),
+            )
             out = (r.stdout + r.stderr).strip()
             if 'Preflight check: OK' in out or 'FAILED' not in out:
                 return True
@@ -334,29 +367,46 @@ class Runner:
         with open(self.results, 'a', newline='') as f:
             w = csv.writer(f)
             if new:
-                w.writerow(['method', 'outcome', 'time_to_intercept_s', 'min_range_m',
-                            'capture_radius_m', 'trace_csv', 'time_engaged_s',
-                            'scenario', 'trial'])
+                w.writerow(
+                    [
+                        'method',
+                        'outcome',
+                        'time_to_intercept_s',
+                        'min_range_m',
+                        'capture_radius_m',
+                        'trace_csv',
+                        'time_engaged_s',
+                        'scenario',
+                        'trial',
+                    ]
+                )
             w.writerow([method, why, '', '', '', '', '', scen, trial])
 
     def run_trial(self, m, scen, trial):
         name = m['name']
         slug = name.replace('/', '_').replace('+', '-')
         trace = os.path.join(self.out, 'traces', f'{scen}__{slug}__t{trial:02d}.csv')
-        label = {'method': name, 'scenario': scen, 'trial': str(trial),
-                 'csv_path': trace, 'summary_csv_path': self.results}
+        label = {
+            'method': name,
+            'scenario': scen,
+            'trial': str(trial),
+            'csv_path': trace,
+            'summary_csv_path': self.results,
+        }
         pkg, launch_file, args = m['launch']
         # '~' and $VARS in launch args expand (e.g. a policy path under $HOME)
-        args = {k: os.path.expanduser(os.path.expandvars(str(v)))
-                for k, v in (args or {}).items()}
+        args = {k: os.path.expanduser(os.path.expandvars(str(v))) for k, v in (args or {}).items()}
         cmds = []
         if m.get('metrics_in_launch', False):
             args.update({'metrics': 'true'}, **label)
         else:
-            cmds.append(['ros2', 'launch', 'drone_interception_sim', 'metrics.launch.py']
-                        + [f'{k}:={v}' for k, v in label.items()])
-        cmds.insert(0, ['ros2', 'launch', pkg, launch_file]
-                    + [f'{k}:={v}' for k, v in args.items()])
+            cmds.append(
+                ['ros2', 'launch', 'drone_interception_sim', 'metrics.launch.py']
+                + [f'{k}:={v}' for k, v in label.items()]
+            )
+        cmds.insert(
+            0, ['ros2', 'launch', pkg, launch_file] + [f'{k}:={v}' for k, v in args.items()]
+        )
         if self.dry_run:
             for c in cmds:
                 print('   ', ' '.join(c))
@@ -365,11 +415,12 @@ class Runner:
         log(f'{scen} t{trial:02d} {name}: phase delay {delay:.1f} s')
         self.watch.spin(delay)
         before = self._rows()
-        procs = [self._spawn(c, f'{scen}__{slug}__t{trial:02d}_{i}.log')
-                 for i, c in enumerate(cmds)]
+        procs = [
+            self._spawn(c, f'{scen}__{slug}__t{trial:02d}_{i}.log') for i, c in enumerate(cmds)
+        ]
         try:
             outcome = self._await_row(procs, before, m)
-        finally:   # also on Ctrl-C: orphaned stage nodes would pollute later trials
+        finally:  # also on Ctrl-C: orphaned stage nodes would pollute later trials
             for p in procs:
                 self._stop(p)
         if outcome is None:
@@ -389,9 +440,11 @@ class Runner:
                 if not last.get('time_engaged_s') and last['outcome'] != 'capture':
                     self._mark_last('no_liftoff')
                     last['outcome'] = 'no_liftoff'
-                outcome = (f"{last['outcome']} t={last['time_to_intercept_s']}s "
-                           f"engaged={last.get('time_engaged_s', '')}s "
-                           f"min={last['min_range_m']}m")
+                outcome = (
+                    f"{last['outcome']} t={last['time_to_intercept_s']}s "
+                    f"engaged={last.get('time_engaged_s', '')}s "
+                    f"min={last['min_range_m']}m"
+                )
                 break
             if any(p.poll() is not None for p in procs[:1]):
                 break
@@ -422,7 +475,7 @@ class Runner:
                         if self.run_trial(m, scen, trial):
                             break
                         log('infrastructure fault: restarting the sim and retrying')
-                        self.sim_scenario = None   # force a restart
+                        self.sim_scenario = None  # force a restart
         if not self.dry_run:
             self._bring_home()
             if self.manage_sim:
@@ -434,10 +487,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     p.add_argument('campaign', help='campaign YAML')
     p.add_argument('--out', required=True, help='output directory')
-    p.add_argument('--no-manage-sim', action='store_true',
-                   help='use an already-running sim (single scenario)')
-    p.add_argument('--scenario', action='append',
-                   help='run only these scenarios (repeatable)')
+    p.add_argument(
+        '--no-manage-sim', action='store_true', help='use an already-running sim (single scenario)'
+    )
+    p.add_argument('--scenario', action='append', help='run only these scenarios (repeatable)')
     p.add_argument('--trials', type=int, help='override the campaign trial count')
     p.add_argument('--dry-run', action='store_true', help='print the launches only')
     a = p.parse_args()

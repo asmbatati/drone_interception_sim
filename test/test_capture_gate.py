@@ -1,4 +1,5 @@
 """Unit tests for the FSM head's capture gate (times are binary fractions)."""
+
 from drone_interception_sim.capture_gate import CaptureGate
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""RViz visualization for the interception pipeline.
+"""
+RViz visualization for the interception pipeline.
 
 Republishes everything worth watching as a single colour-coded MarkerArray in
 the common world frame (``map``), so one RViz MarkerArray display shows it all:
@@ -15,14 +16,14 @@ World positions are computed from odom + spawn offsets (the same convention the
 ground_truth detector uses), so this needs no TF wiring. The gap between the
 green (actual) and yellow (estimate) spheres is the live estimation error.
 """
-import math
 
-import rclpy
-from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
+import math
 
 from geometry_msgs.msg import Point, PoseArray, PoseStamped
 from nav_msgs.msg import Odometry, Path
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -35,17 +36,19 @@ class PipelineViz(Node):
     def __init__(self):
         super().__init__('pipeline_viz')
         self.frame = self.declare_parameter('world_frame', 'map').value
-        self.interceptor_spawn = list(map(
-            float, self.declare_parameter('interceptor_spawn', [0.0, 0.0, 0.0]).value))
-        self.target_spawn = list(map(
-            float, self.declare_parameter('target_spawn', [10.0, 0.0, 0.0]).value))
+        self.interceptor_spawn = list(
+            map(float, self.declare_parameter('interceptor_spawn', [0.0, 0.0, 0.0]).value)
+        )
+        self.target_spawn = list(
+            map(float, self.declare_parameter('target_spawn', [10.0, 0.0, 0.0]).value)
+        )
 
         self.target_odom = None
         self.interceptor_odom = None
-        self.estimate = None       # (x,y,z) in world frame
-        self.predicted = []        # list of (x,y,z)
-        self.planned = []          # list of (x,y,z)
-        self.intercept = None      # (x,y,z)
+        self.estimate = None  # (x,y,z) in world frame
+        self.predicted = []  # list of (x,y,z)
+        self.planned = []  # list of (x,y,z)
+        self.intercept = None  # (x,y,z)
 
         sd = qos_profile_sensor_data
         self.create_subscription(Odometry, 'target_odom', self._tgt_cb, sd)
@@ -62,14 +65,19 @@ class PipelineViz(Node):
     # --- inputs (world = odom + spawn for the two craft; the rest are already map)
     def _tgt_cb(self, m):
         p = m.pose.pose.position
-        self.target_odom = (p.x + self.target_spawn[0], p.y + self.target_spawn[1],
-                            p.z + self.target_spawn[2])
+        self.target_odom = (
+            p.x + self.target_spawn[0],
+            p.y + self.target_spawn[1],
+            p.z + self.target_spawn[2],
+        )
 
     def _int_cb(self, m):
         p = m.pose.pose.position
-        self.interceptor_odom = (p.x + self.interceptor_spawn[0],
-                                 p.y + self.interceptor_spawn[1],
-                                 p.z + self.interceptor_spawn[2])
+        self.interceptor_odom = (
+            p.x + self.interceptor_spawn[0],
+            p.y + self.interceptor_spawn[1],
+            p.z + self.interceptor_spawn[2],
+        )
 
     def _est_cb(self, m):
         if m.poses:
@@ -77,12 +85,14 @@ class PipelineViz(Node):
             self.estimate = (p.x, p.y, p.z)
 
     def _pred_cb(self, m):
-        self.predicted = [(ps.pose.position.x, ps.pose.position.y, ps.pose.position.z)
-                          for ps in m.poses]
+        self.predicted = [
+            (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z) for ps in m.poses
+        ]
 
     def _plan_cb(self, m):
-        self.planned = [(ps.pose.position.x, ps.pose.position.y, ps.pose.position.z)
-                        for ps in m.poses]
+        self.planned = [
+            (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z) for ps in m.poses
+        ]
 
     def _ip_cb(self, m):
         p = m.pose.position
@@ -129,30 +139,42 @@ class PipelineViz(Node):
         arr = MarkerArray()
         if self.target_odom:
             g = _c(0.1, 0.9, 0.1)
-            arr.markers += [self._sphere('target_actual', self.target_odom, g),
-                            self._label('target_actual', self.target_odom, 'target (actual)', g)]
+            arr.markers += [
+                self._sphere('target_actual', self.target_odom, g),
+                self._label('target_actual', self.target_odom, 'target (actual)', g),
+            ]
         if self.estimate:
             y = _c(1.0, 0.85, 0.0)
-            arr.markers += [self._sphere('target_estimate', self.estimate, y, 0.5),
-                            self._label('target_estimate', self.estimate, 'target (estimate)', y)]
+            arr.markers += [
+                self._sphere('target_estimate', self.estimate, y, 0.5),
+                self._label('target_estimate', self.estimate, 'target (estimate)', y),
+            ]
             # Live estimation-error readout: the distance between the actual
             # target and the KF estimate, so estimator quality is visible at a
             # glance (no guessing from sphere overlap).
             if self.target_odom:
                 err = math.dist(self.target_odom, self.estimate)
                 e_color = _c(0.2, 1.0, 0.2) if err < 0.5 else _c(1.0, 0.3, 0.2)
-                arr.markers.append(self._label(
-                    'estimation_error',
-                    (self.estimate[0], self.estimate[1], self.estimate[2] + 0.8),
-                    f'est err {err:.2f} m', e_color))
+                arr.markers.append(
+                    self._label(
+                        'estimation_error',
+                        (self.estimate[0], self.estimate[1], self.estimate[2] + 0.8),
+                        f'est err {err:.2f} m',
+                        e_color,
+                    )
+                )
         if self.interceptor_odom:
             b = _c(0.2, 0.4, 1.0)
-            arr.markers += [self._sphere('interceptor', self.interceptor_odom, b),
-                            self._label('interceptor', self.interceptor_odom, 'interceptor', b)]
+            arr.markers += [
+                self._sphere('interceptor', self.interceptor_odom, b),
+                self._label('interceptor', self.interceptor_odom, 'interceptor', b),
+            ]
         if self.intercept:
             r = _c(1.0, 0.1, 0.1)
-            arr.markers += [self._sphere('intercept_point', self.intercept, r, 0.4),
-                            self._label('intercept_point', self.intercept, 'intercept pt', r)]
+            arr.markers += [
+                self._sphere('intercept_point', self.intercept, r, 0.4),
+                self._label('intercept_point', self.intercept, 'intercept pt', r),
+            ]
         if len(self.predicted) >= 2:
             arr.markers.append(self._line('predicted_path', self.predicted, _c(0.0, 0.9, 0.9)))
         # Planned path = the interceptor's approach to the planner's reference.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""FSM orchestration head for the interception pipeline.
+"""
+FSM orchestration head for the interception pipeline.
 
 This is the phase-sequencing "brain" that sits on top of the
 detection->estimation->prediction->planning->MPC->control cascade. It does NOT
@@ -19,19 +20,18 @@ are driven by altitude, target detection and interceptor->target range.
 Selected via pipeline.launch.py orchestrator:=fsm. Alternative heads (bt, rl,
 offboard) are selectable there too; see ARCHITECTURE.md.
 """
+
 import math
 
+from drone_interception_sim.capture_gate import CaptureGate
+from geometry_msgs.msg import PoseArray
+from mavros_msgs.msg import State
+from mavros_msgs.srv import CommandBool, SetMode
+from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
-
-from geometry_msgs.msg import PoseArray
-from nav_msgs.msg import Odometry
 from std_msgs.msg import String
-from mavros_msgs.msg import State
-from mavros_msgs.srv import CommandBool, SetMode
-
-from drone_interception_sim.capture_gate import CaptureGate
 
 
 class PipelineFSM(Node):
@@ -48,17 +48,19 @@ class PipelineFSM(Node):
 
         self.phase = 'Idle'
         self.state = State()
-        self.interceptor = None      # numpy-free: (x,y,z)
-        self.target = None           # world-frame target position (x,y,z)
+        self.interceptor = None  # numpy-free: (x,y,z)
+        self.target = None  # world-frame target position (x,y,z)
         self.last_target_t = None
         self.captured = False
 
         self.create_subscription(State, 'mavros/state', self._state_cb, 10)
-        self.create_subscription(Odometry, 'interceptor_odom',
-                                 self._iodom_cb, qos_profile_sensor_data)
+        self.create_subscription(
+            Odometry, 'interceptor_odom', self._iodom_cb, qos_profile_sensor_data
+        )
         # Confirmed target estimate (world frame) from the estimation stage.
-        self.create_subscription(PoseArray, 'target_estimate',
-                                 self._target_cb, qos_profile_sensor_data)
+        self.create_subscription(
+            PoseArray, 'target_estimate', self._target_cb, qos_profile_sensor_data
+        )
 
         self.phase_pub = self.create_publisher(String, 'mission/phase', 10)
         self.arming = self.create_client(CommandBool, 'mavros/cmd/arming')

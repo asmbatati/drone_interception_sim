@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Publish RViz markers for a drone, attached to its base_link TF frame.
+"""
+Publish RViz markers for a drone, attached to its base_link TF frame.
 
 The drones are spawned from PX4 SDF (no ROS robot_description / URDF), so RViz
 has nothing to render for the bodies. This node fills that gap by publishing a
@@ -17,6 +18,7 @@ Propeller spin is driven by real flight data (``mavros/state`` armed +
 ``mavros/vfr_hud`` throttle); the rate is proportional to throttle and zero when
 disarmed.
 """
+
 import math
 import os
 import xml.etree.ElementTree as ET
@@ -25,8 +27,13 @@ from geometry_msgs.msg import Point
 from mavros_msgs.msg import State, VfrHud
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
-                       ReliabilityPolicy, qos_profile_sensor_data)
+from rclpy.qos import (
+    DurabilityPolicy,
+    HistoryPolicy,
+    qos_profile_sensor_data,
+    QoSProfile,
+    ReliabilityPolicy,
+)
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -35,19 +42,23 @@ def _quat_from_rpy(r, p, y):
     cr, sr = math.cos(r / 2), math.sin(r / 2)
     cp, sp = math.cos(p / 2), math.sin(p / 2)
     cy, sy = math.cos(y / 2), math.sin(y / 2)
-    return (sr * cp * cy - cr * sp * sy,
-            cr * sp * cy + sr * cp * sy,
-            cr * cp * sy - sr * sp * cy,
-            cr * cp * cy + sr * sp * sy)
+    return (
+        sr * cp * cy - cr * sp * sy,
+        cr * sp * cy + sr * cp * sy,
+        cr * cp * sy - sr * sp * cy,
+        cr * cp * cy + sr * sp * sy,
+    )
 
 
 def _qmul(a, b):
     ax, ay, az, aw = a
     bx, by, bz, bw = b
-    return (aw * bx + ax * bw + ay * bz - az * by,
-            aw * by - ax * bz + ay * bw + az * bx,
-            aw * bz + ax * by - ay * bx + az * bw,
-            aw * bw - ax * bx - ay * by - az * bz)
+    return (
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz,
+    )
 
 
 def _qconj(q):
@@ -77,19 +88,19 @@ class DroneMarkers(Node):
         super().__init__('drone_markers')
         self.declare_parameter('frame_id', 'base_link')
         self.declare_parameter('marker_ns', 'drone')
-        self.declare_parameter('color', [0.1, 0.4, 1.0])   # RGB 0..1 (geom modes)
+        self.declare_parameter('color', [0.1, 0.4, 1.0])  # RGB 0..1 (geom modes)
         self.declare_parameter('arm_length', 0.25)
         self.declare_parameter('rate', 10.0)
         # Full-model mode: render every visual of this model SDF.
-        self.declare_parameter('model_sdf', '')             # path to model.sdf
-        self.declare_parameter('model_dir', '')             # base for model:// URIs
+        self.declare_parameter('model_sdf', '')  # path to model.sdf
+        self.declare_parameter('model_dir', '')  # base for model:// URIs
         # Single-mesh / geometric fallbacks.
-        self.declare_parameter('mesh_resource', '')         # file://... single body mesh
+        self.declare_parameter('mesh_resource', '')  # file://... single body mesh
         self.declare_parameter('mesh_scale', 1.0)
         # Propeller animation driven by the real PX4 throttle (VFR_HUD).
-        self.declare_parameter('max_spin_rate', 80.0)       # rad/s at full throttle
-        self.declare_parameter('idle_spin_rate', 12.0)      # rad/s when armed, ~0 throttle
-        self.declare_parameter('show_props', True)          # geometric/single-mesh modes
+        self.declare_parameter('max_spin_rate', 80.0)  # rad/s at full throttle
+        self.declare_parameter('idle_spin_rate', 12.0)  # rad/s when armed, ~0 throttle
+        self.declare_parameter('show_props', True)  # geometric/single-mesh modes
         self.declare_parameter('prop_z', 0.10)
         self.declare_parameter('prop_len', 0.22)
 
@@ -109,20 +120,21 @@ class DroneMarkers(Node):
         model_dir = self.get_parameter('model_dir').value
         self.visuals = self._parse_sdf(model_sdf, model_dir) if model_sdf else []
         if model_sdf and not self.visuals:
-            self.get_logger().warn(
-                f'no visuals parsed from {model_sdf}; falling back to geometry')
+            self.get_logger().warn(f'no visuals parsed from {model_sdf}; falling back to geometry')
 
         # Real flight state for the propeller spin.
         self.armed = False
-        self.throttle = 0.0          # 0..1 from VFR_HUD
+        self.throttle = 0.0  # 0..1 from VFR_HUD
         self.spin_angle = 0.0
         self._last_t = None
-        state_qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
-                               durability=DurabilityPolicy.VOLATILE,
-                               history=HistoryPolicy.KEEP_LAST, depth=5)
+        state_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=5,
+        )
         self.create_subscription(State, 'mavros/state', self._state_cb, state_qos)
-        self.create_subscription(VfrHud, 'mavros/vfr_hud', self._vfr_cb,
-                                 qos_profile_sensor_data)
+        self.create_subscription(VfrHud, 'mavros/vfr_hud', self._vfr_cb, qos_profile_sensor_data)
 
         self.pub = self.create_publisher(MarkerArray, 'markers', 1)
         period = 1.0 / max(self.get_parameter('rate').value, 1e-3)
@@ -132,7 +144,8 @@ class DroneMarkers(Node):
 
     def _resolve_uri(self, uri, model_dir, sdf_dir):
         if uri.startswith('model://'):
-            return 'file://' + os.path.join(model_dir, uri[len('model://'):])
+            prefix_len = len('model://')
+            return 'file://' + os.path.join(model_dir, uri[prefix_len:])
         if uri.startswith(('file://', 'package://')):
             return uri
         if uri.startswith('/'):
@@ -140,7 +153,8 @@ class DroneMarkers(Node):
         return 'file://' + os.path.join(sdf_dir, uri)
 
     def _parse_sdf(self, sdf_path, model_dir):
-        """Return a list of visual specs in the base_link frame.
+        """
+        Return a list of visual specs in the base_link frame.
 
         Each spec is (p_link, q_link, p_vis, q_vis, scale, uri, spin_dir) so the
         per-frame marker pose is T(base_link<-link) . Rz(spin) . T(visual).
@@ -157,7 +171,7 @@ class DroneMarkers(Node):
             return visuals
         sdf_dir = os.path.dirname(sdf_path)
         if not model_dir:
-            model_dir = os.path.dirname(sdf_dir)   # parent of this model's own dir
+            model_dir = os.path.dirname(sdf_dir)  # parent of this model's own dir
 
         # base_link link pose in the model frame (markers are in the base_link frame)
         base_pos, base_quat = (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)
@@ -171,12 +185,13 @@ class DroneMarkers(Node):
         for link in model.findall('link'):
             lname = (link.get('name') or '').lower()
             pe = link.find('pose')
-            lpos, lquat = _parse_pose(pe.text) if pe is not None else (
-                (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+            lpos, lquat = (
+                _parse_pose(pe.text) if pe is not None else ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+            )
             q_link = _qmul(bq_inv, lquat)
-            p_link = _qrot(bq_inv, (lpos[0] - base_pos[0],
-                                    lpos[1] - base_pos[1],
-                                    lpos[2] - base_pos[2]))
+            p_link = _qrot(
+                bq_inv, (lpos[0] - base_pos[0], lpos[1] - base_pos[1], lpos[2] - base_pos[2])
+            )
             spin_dir = 0.0
             if 'rotor' in lname:
                 spin_dir = 1.0
@@ -192,7 +207,7 @@ class DroneMarkers(Node):
             for vis in link.findall('visual'):
                 mesh = vis.find('.//mesh')
                 if mesh is None:
-                    continue   # skip plane/box decals (FMU labels etc.)
+                    continue  # skip plane/box decals (FMU labels etc.)
                 ue = mesh.find('uri')
                 if ue is None or not ue.text:
                     continue
@@ -206,8 +221,11 @@ class DroneMarkers(Node):
                 else:
                     scale = (1.0, 1.0, 1.0)
                 ve = vis.find('pose')
-                vpos, vquat = _parse_pose(ve.text) if ve is not None else (
-                    (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+                vpos, vquat = (
+                    _parse_pose(ve.text)
+                    if ve is not None
+                    else ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+                )
                 visuals.append((p_link, q_link, vpos, vquat, scale, uri, spin_dir))
         return visuals
 
@@ -238,8 +256,7 @@ class DroneMarkers(Node):
     def _model_markers(self):
         """Full model: every parsed visual at its true pose/scale, rotors spinning."""
         markers = []
-        for i, (p_link, q_link, p_vis, q_vis, scale, uri, spin_dir) in \
-                enumerate(self.visuals):
+        for i, (p_link, q_link, p_vis, q_vis, scale, uri, spin_dir) in enumerate(self.visuals):
             if spin_dir != 0.0:
                 s = spin_dir * self.spin_angle
                 qs = (0.0, 0.0, math.sin(s / 2.0), math.cos(s / 2.0))
@@ -250,14 +267,14 @@ class DroneMarkers(Node):
             off = _qrot(q_ls, p_vis)
             m = self._base(i, Marker.MESH_RESOURCE)
             m.mesh_resource = uri
-            m.mesh_use_embedded_materials = True   # .dae materials; STL uses color
+            m.mesh_use_embedded_materials = True  # .dae materials; STL uses color
             m.pose.position.x = p_link[0] + off[0]
             m.pose.position.y = p_link[1] + off[1]
             m.pose.position.z = p_link[2] + off[2]
             m.pose.orientation.x, m.pose.orientation.y = q_marker[0], q_marker[1]
             m.pose.orientation.z, m.pose.orientation.w = q_marker[2], q_marker[3]
             m.scale.x, m.scale.y, m.scale.z = scale
-            m.color.r = m.color.g = m.color.b = 0.15   # for material-less STL meshes
+            m.color.r = m.color.g = m.color.b = 0.15  # for material-less STL meshes
             m.color.a = 1.0
             markers.append(m)
         return markers
@@ -298,7 +315,7 @@ class DroneMarkers(Node):
         arms = self._base(1, Marker.LINE_LIST)
         arms.scale.x = 0.03
         d = self.arm / math.sqrt(2.0)
-        for (x, y) in [(d, d), (-d, -d), (d, -d), (-d, d)]:
+        for x, y in [(d, d), (-d, -d), (d, -d), (-d, d)]:
             arms.points.append(Point(x=0.0, y=0.0, z=0.0))
             arms.points.append(Point(x=x, y=y, z=0.0))
         markers.append(arms)
@@ -315,8 +332,9 @@ class DroneMarkers(Node):
     def _publish(self):
         now = self.get_clock().now().nanoseconds * 1e-9
         if self._last_t is not None:
-            self.spin_angle = (self.spin_angle + self._spin_rate() *
-                               (now - self._last_t)) % (2.0 * math.pi)
+            self.spin_angle = (self.spin_angle + self._spin_rate() * (now - self._last_t)) % (
+                2.0 * math.pi
+            )
         self._last_t = now
         if self.visuals:
             markers = self._model_markers()

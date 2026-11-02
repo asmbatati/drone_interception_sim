@@ -1,4 +1,5 @@
-"""Capture decision for the FSM head.
+"""
+Capture decision for the FSM head.
 
 The estimated range must stay inside the radius for a short time, on fresh
 estimates.
@@ -28,7 +29,8 @@ class CaptureGate:
         self._since = None
 
     def update(self, rng, t, fresh):
-        """Return True once `rng` has stayed inside the radius until time `t`.
+        """
+        Return True once `rng` has stayed inside the radius until time `t`.
 
         `fresh` says whether the estimate behind `rng` is current.
         """

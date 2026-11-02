@@ -1,7 +1,9 @@
-"""Parametric 3D trajectory generators (circle and figure-eight).
+"""
+Parametric 3D trajectory generators (circle and figure-eight).
 
 Re-homed from uavros2 so this package is self-contained.
 """
+
 import numpy as np
 
 
