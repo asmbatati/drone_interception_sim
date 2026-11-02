@@ -93,7 +93,12 @@ def generate_launch_description():
         'detection_node',
         'backend',
         'detector',
-        params={'target_odom_topic': '/target/mavros/local_position/odom'},
+        params={
+            'target_odom_topic': '/target/mavros/local_position/odom',
+            'cue': LaunchConfiguration('cue'),
+            'cue_min_range': LaunchConfiguration('cue_min_range'),
+            'cue_noise': LaunchConfiguration('cue_noise'),
+        },
     )
     estimation = stage(
         'interception_estimation',
@@ -101,7 +106,13 @@ def generate_launch_description():
         'tracker_ros',
         'model_type',
         'estimator',
-        params={'tracking_frame': 'map'},
+        params={
+            'tracking_frame': 'map',
+            'sigma_a': LaunchConfiguration('kf_sigma_a'),
+            'r_diag_x': LaunchConfiguration('kf_r'),
+            'r_diag_y': LaunchConfiguration('kf_r'),
+            'r_diag_z': LaunchConfiguration('kf_r'),
+        },
         remaps=[('measurement/pose_array', '/interceptor/detection_node/detections_poses')],
     )
     prediction = stage(
@@ -119,6 +130,11 @@ def generate_launch_description():
         'planning_node',
         'backend',
         'planner',
+        params={
+            'yaw_mode': PythonExpression(
+                ["'target' if '", LaunchConfiguration('gaze'), "' == 'true' else 'velocity'"]
+            )
+        },
         remaps=[
             ('predicted_trajectory', '/interceptor/predicted_trajectory'),
             ('interceptor_odom', '/interceptor/mavros/local_position/odom'),
@@ -341,8 +357,44 @@ def generate_launch_description():
                 description='orchestrator:=rl: frame of the interceptor '
                 'velocity the policy was trained on (body | world)',
             ),
-            DeclareLaunchArgument('detector', default_value='ground_truth'),
+            DeclareLaunchArgument(
+                'detector',
+                default_value='ground_truth',
+                description='ground_truth | depth (ported blob search) | depth_cc (ground '
+                'removal + connected components) | yolo',
+            ),
+            DeclareLaunchArgument(
+                'gaze',
+                default_value='false',
+                description='yaw toward the target estimate instead of the direction of '
+                'travel, so a forward-looking camera keeps it in view (vision detectors)',
+            ),
+            DeclareLaunchArgument(
+                'cue',
+                default_value='false',
+                description='vision detectors: feed a noisy long-range target cue (radar / '
+                'datalink stand-in) while the camera has no detection and the target is '
+                'farther than cue_min_range',
+            ),
+            DeclareLaunchArgument(
+                'cue_min_range',
+                default_value='8.0',
+                description='m: the cue is silent inside this range (keep it inside the '
+                "camera's depth clip so the end game is vision only)",
+            ),
+            DeclareLaunchArgument('cue_noise', default_value='0.5', description='cue sigma, m'),
             DeclareLaunchArgument('estimator', default_value='const_vel'),
+            DeclareLaunchArgument(
+                'kf_sigma_a',
+                default_value='10.0',
+                description='estimator: std of the random acceleration, m/s^2 (process noise)',
+            ),
+            DeclareLaunchArgument(
+                'kf_r',
+                default_value='0.01',
+                description='estimator: measurement variance per axis, m^2 (a vision or '
+                'cue-fed run measures to a few tenths of a metre: 0.1)',
+            ),
             # gru = the OLD implementation's trained predictor (pos+vel GRUs,
             # velocity-path, weights shipped in interception_prediction/models);
             # falls back to const_vel automatically if torch/weights are missing.
