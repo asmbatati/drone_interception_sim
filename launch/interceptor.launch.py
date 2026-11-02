@@ -96,6 +96,7 @@ def _kill_stale_sim(partition):
         'map2px4_interceptor_tf_node',
         'map2px4_target_tf_node',
         'odom2base_tf_relay',
+        'd435_optical_tf_node',
         'drone_interception_sim/lib',
         'interceptor_depthcam_bridge',
         # controllers run against this sim (pipeline stages, heads)
@@ -346,21 +347,52 @@ def launch_setup(context, *args, **kwargs):
     )
 
     # Sensor bridge. /clock is always needed; the D435 depth-camera topics are
-    # added only with gpu:=true (the camera needs gz GL rendering).
+    # added only with gpu:=true (the camera needs gz GL rendering). The point
+    # cloud is not bridged: nothing reads it, and at 640x480 and 20 Hz it is
+    # about 100 MB/s through the bridge, which held the image topics under 15 Hz.
     bridge_args = ['/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock']
     if gpu != 'false':
+        # The images carry gz's sensor frame, which ROS has no transform for. The
+        # depth and yolo detectors back-project in the optical convention (z forward,
+        # x right, y down), so publish base_link -> that frame with the optical
+        # rotation. The D435 sits 0.15 m ahead of and 0.25 m above base_link, facing
+        # forward (x500_d435 model.sdf).
+        actions.append(
+            Node(
+                package='tf2_ros',
+                executable='static_transform_publisher',
+                name='d435_optical_tf_node',
+                arguments=[
+                    '--x',
+                    '0.15',
+                    '--y',
+                    '0',
+                    '--z',
+                    '0.25',
+                    '--yaw',
+                    '-1.5708',
+                    '--pitch',
+                    '0',
+                    '--roll',
+                    '-1.5708',
+                    '--frame-id',
+                    NS + '/base_link',
+                    '--child-frame-id',
+                    f'{MODEL}_{INSTANCE_ID}/link/realsense_d435',
+                ],
+                parameters=[{'use_sim_time': True}],
+                output='log',
+            )
+        )
         bridge_args += [
             '/d435/depth_image@sensor_msgs/msg/Image[ignition.msgs.Image',
             '/d435/image@sensor_msgs/msg/Image[ignition.msgs.Image',
-            '/d435/points@sensor_msgs/msg/PointCloud2[ignition.msgs.PointCloudPacked',
             '/d435/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo',
             '--ros-args',
             '-r',
             '/d435/depth_image:=' + NS + '/depth_image',
             '-r',
             '/d435/image:=' + NS + '/image',
-            '-r',
-            '/d435/points:=' + NS + '/points',
             '-r',
             '/d435/camera_info:=' + NS + '/camera_info',
         ]

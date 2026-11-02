@@ -198,9 +198,19 @@ the cascade by not starting MPC/control for that branch).
   path): SMART-TRACK's *KF→detection feedback loop* (use the KF track + its
   covariance to define a depth-image search ROI when YOLO misses) and the
   `ApproximateTimeSynchronizer(slop=0.1)` detection/depth fusion.
-- **Camera** (`depth`/`yolo` detectors) is blocked by an EGL/`gimbal_small_3d`
-  issue; `ground_truth` is the default detector so the whole cascade runs
-  camera-free.
+- **Camera** (`depth`/`yolo` detectors): `x500_d435` carries a D435 again
+  (`uavros2` `7a08404`; before that the model had no camera and the EGL warnings in the gz
+  log were harmless). `interceptor.launch.py` bridges `/d435/image`, `/d435/depth_image`
+  and `/d435/camera_info` to `/interceptor/image`, `/interceptor/depth_image` and
+  `/interceptor/camera_info` (`gpu:=true`, the default) and publishes the static optical-frame
+  transform `interceptor/base_link` -> `x500_d435_0/link/realsense_d435`. The point cloud is
+  not bridged (about 100 MB/s, nothing reads it; with it the images ran at 10-13 Hz, without
+  it 15-16.5 Hz). The depth image is clipped at 10 m, so a detector can only acquire the
+  target inside 10 m: the benchmark circle (centre 20 m from the interceptor) is out of range.
+  `target_center:=x,y,z` (the target's own frame) moves it. `ground_truth` stays the default
+  detector so the whole cascade runs camera-free. Images are decoded in
+  `interception_detection.image_utils`, not cv_bridge, which segfaults under the NumPy 2 in the
+  user site.
 
 ---
 

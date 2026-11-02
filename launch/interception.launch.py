@@ -92,6 +92,7 @@ def generate_launch_description():
             'marker_mesh': LaunchConfiguration('marker_mesh'),
             'target_trajectory': LaunchConfiguration('target_trajectory'),
             'target_radius': LaunchConfiguration('target_radius'),
+            'target_center': LaunchConfiguration('target_center'),
             'target_omega': LaunchConfiguration('target_omega'),
             'target_evade': LaunchConfiguration('target_evade'),
             'xpos': target_x,
@@ -149,6 +150,11 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'target_radius', default_value='', description='target path radius override, m'
+            ),
+            DeclareLaunchArgument(
+                'target_center',
+                default_value='',
+                description="target path centre override 'x,y,z', m, in the target's own frame",
             ),
             DeclareLaunchArgument(
                 'target_omega',

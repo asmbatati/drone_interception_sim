@@ -56,7 +56,7 @@ export ROS_DOMAIN_ID=21                      # every other terminal talking to t
 
 Target scenario overrides (else `config/target_trajectory.yaml`: 6 m circle at
 0.4 rad/s = 2.4 m/s, 4 m altitude, no evasion): `target_trajectory:=circle|infty`,
-`target_radius:=`, `target_omega:=`, `target_evade:=true`.
+`target_radius:=`, `target_center:=x,y,z`, `target_omega:=`, `target_evade:=true`.
 
 You should see **one** Gazebo GUI with two drones. Verify both FCUs connect:
 

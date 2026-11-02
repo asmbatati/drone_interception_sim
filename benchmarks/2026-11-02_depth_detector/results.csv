@@ -1,0 +1,4 @@
+method,outcome,time_to_intercept_s,min_range_m,capture_radius_m,trace_csv,time_engaged_s,scenario,trial
+pipeline/rendezvous+gru+passthrough+px4_setpoint+depth,miss,21.30,4.245,1.0,bench_runs/2026-11-02_depth_detector/traces/circle_near__pipeline_rendezvous-gru-passthrough-px4_setpoint-depth__t00.csv,15.80,circle_near,0
+pipeline/rendezvous+gru+passthrough+px4_setpoint+depth,miss,24.20,2.574,1.0,bench_runs/2026-11-02_depth_detector/traces/circle_near__pipeline_rendezvous-gru-passthrough-px4_setpoint-depth__t01.csv,18.30,circle_near,1
+pipeline/rendezvous+gru+passthrough+px4_setpoint+depth,miss,25.40,3.336,1.0,bench_runs/2026-11-02_depth_detector/traces/circle_near__pipeline_rendezvous-gru-passthrough-px4_setpoint-depth__t02.csv,19.20,circle_near,2

@@ -161,6 +161,14 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
   re-run as infrastructure faults: the target's PX4 got no sensor data until
   `uavros2` `c383bc9` (a second `gz sim` server per launch), and 16 interceptor
   preflight checks failed and were retried by the runner.
+- **Vision in the loop (2 Nov, first run): the pipeline flies on `detector:=depth` but does not
+  capture.** With the target circle moved to 12 m from the interceptor (`target_center:=2,0,4`, so
+  the 10 m depth clip sees it part of the time), 3 trials, passthrough pipeline: 0/3 captures,
+  closest approach 4.2, 2.6 and 3.3 m (`benchmarks/2026-11-02_depth_detector/`). In the standard
+  scene (circle centre 20 m away) the depth camera never sees the target and the interceptor
+  stays at its start (closest 14.0-14.1 m, 3/3 timeouts). The detector itself found the target:
+  157 detection messages in a 70 s hover 12 m out. Tuning the blob detector for the
+  noise-free sim depth is the next step.
 - **The RL policy does not transfer to this scene** (2/20). It was trained
   against a 0.5 m/s target; here the target flies at 2.4 m/s. The
   speed-generalisation sweep and the speed curriculum (C4, C6) target this gap.

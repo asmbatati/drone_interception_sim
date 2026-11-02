@@ -195,12 +195,14 @@ def launch_setup(context, *args, **kwargs):
     casts = {
         'trajectory_type': str,
         'radius': float,
+        'center': lambda v: [float(c) for c in v.split(',')],
         'omega': float,
         'evade': lambda v: v.lower() in ('1', 'true', 'yes'),
     }
     for arg, key in (
         ('target_trajectory', 'trajectory_type'),
         ('target_radius', 'radius'),
+        ('target_center', 'center'),
         ('target_omega', 'omega'),
         ('target_evade', 'evade'),
     ):
@@ -252,6 +254,11 @@ def generate_launch_description():
                 'target_radius',
                 default_value='',
                 description="override path radius, m ('' = YAML)",
+            ),
+            DeclareLaunchArgument(
+                'target_center',
+                default_value='',
+                description="override path centre 'x,y,z' in the target's frame, m ('' = YAML)",
             ),
             DeclareLaunchArgument(
                 'target_omega',
