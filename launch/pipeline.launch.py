@@ -119,7 +119,8 @@ def generate_launch_description():
         parameters=[{'use_sim_time': False,
                      'takeoff_alt': LaunchConfiguration('takeoff_alt'),
                      'attack_distance': LaunchConfiguration('attack_distance'),
-                     'capture_radius': LaunchConfiguration('capture_radius')}],
+                     'capture_radius': LaunchConfiguration('capture_radius'),
+                     'capture_confirm': LaunchConfiguration('capture_confirm')}],
         remappings=[('interceptor_odom', '/interceptor/mavros/local_position/odom'),
                     ('target_estimate', '/interceptor/kf/good_tracks_pose_array')],
         condition=fsm_if)
@@ -151,6 +152,7 @@ def generate_launch_description():
         name='policy_head', namespace=ns, output='screen',
         parameters=[{'use_sim_time': use_sim_time,
                      'model': LaunchConfiguration('rl_model'),
+                     'velocity_frame': LaunchConfiguration('rl_velocity_frame'),
                      'capture_radius': LaunchConfiguration('capture_radius')}],
         remappings=[('interceptor_odom', '/interceptor/mavros/local_position/odom'),
                     ('target_odom', '/target/mavros/local_position/odom')],
@@ -209,6 +211,9 @@ def generate_launch_description():
                               description='orchestrator:=rl: SB3 policy .zip '
                                           '(e.g. shaheen_rl/checkpoints/intercept/'
                                           'model_evasive_40k.zip)'),
+        DeclareLaunchArgument('rl_velocity_frame', default_value='body',
+                              description='orchestrator:=rl: frame of the interceptor '
+                                          'velocity the policy was trained on (body | world)'),
         DeclareLaunchArgument('detector', default_value='ground_truth'),
         DeclareLaunchArgument('estimator', default_value='const_vel'),
         # gru = the OLD implementation's trained predictor (pos+vel GRUs,
@@ -236,6 +241,9 @@ def generate_launch_description():
         DeclareLaunchArgument('takeoff_alt', default_value='4.0'),
         DeclareLaunchArgument('attack_distance', default_value='3.0'),
         DeclareLaunchArgument('capture_radius', default_value='1.0'),
+        DeclareLaunchArgument('capture_confirm', default_value='0.6',
+                              description='fsm head: s the estimated range must stay '
+                                          'inside capture_radius to count as capture'),
         DeclareLaunchArgument('metrics', default_value='false'),
         DeclareLaunchArgument('csv_path', default_value='/tmp/pipeline_metrics.csv'),
         DeclareLaunchArgument('summary_csv_path',

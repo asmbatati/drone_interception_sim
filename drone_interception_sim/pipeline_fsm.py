@@ -31,6 +31,8 @@ from std_msgs.msg import String
 from mavros_msgs.msg import State
 from mavros_msgs.srv import CommandBool, SetMode
 
+from drone_interception_sim.capture_gate import CaptureGate
+
 
 class PipelineFSM(Node):
     def __init__(self):
@@ -40,6 +42,9 @@ class PipelineFSM(Node):
         self.capture_radius = float(self.declare_parameter('capture_radius', 1.0).value)
         self.min_setpoints = int(self.declare_parameter('min_setpoints', 50).value)
         self.target_timeout = float(self.declare_parameter('target_timeout', 1.0).value)
+        # The estimate must stay inside capture_radius this long (s) to count.
+        self.capture_confirm = float(self.declare_parameter('capture_confirm', 0.6).value)
+        self.gate = CaptureGate(self.capture_radius, self.capture_confirm)
 
         self.phase = 'Idle'
         self.state = State()
@@ -82,6 +87,9 @@ class PipelineFSM(Node):
             return False
         age = (self.get_clock().now() - self.last_target_t).nanoseconds * 1e-9
         return age < self.target_timeout
+
+    def _now(self):
+        return self.get_clock().now().nanoseconds * 1e-9
 
     def _range(self):
         if self.interceptor is None or self.target is None:
@@ -142,12 +150,16 @@ class PipelineFSM(Node):
 
         elif self.phase == 'Attack':
             self._request_mode('OFFBOARD')
-            if self._range() <= self.capture_radius:
+            rng = self._range()
+            if self.gate.update(rng, self._now(), self._detected()):
                 self.captured = True
-                self.get_logger().info(f'CAPTURE (range={self._range():.2f} m) -> returning')
+                self.get_logger().info(f'CAPTURE (range={rng:.2f} m) -> returning')
                 self._to('Return')
-            elif self._range() > 2.0 * self.attack_distance:
-                self._to('Pursue')   # lost the close approach, fall back to pursue
+            elif not self._detected() or rng > 2.0 * self.attack_distance:
+                # lost the track or the close approach: fall back to pursue
+                # rather than act on a stale estimate
+                self.gate.reset()
+                self._to('Pursue')
 
         elif self.phase == 'Return':
             self._request_mode('AUTO.RTL')

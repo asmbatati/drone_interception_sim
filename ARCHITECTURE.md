@@ -121,6 +121,11 @@ The head is selected with `pipeline.launch.py orchestrator:=`:
 onto the cascade: it transitions on altitude / target detection
 (`kf/good_tracks_pose_array`) / interceptor→target range, and sequences PX4
 modes only — the planning→MPC→control cascade supplies the OFFBOARD setpoints.
+It declares capture (and starts `AUTO.RTL`) only when the estimated range has
+stayed inside `capture_radius` for `capture_confirm` seconds (0.6 s) on fresh
+estimates (`capture_gate.py`); a lost track sends it back to Pursue. The KF
+estimate is off by up to ~0.15 m near capture, so one crossing of the radius is
+not capture.
 This restores the old framework's structure (state machine on top of the
 cascade) with the new, pluggable stages underneath.
 
