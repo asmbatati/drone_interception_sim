@@ -9,7 +9,7 @@
     world, each its own PX4 SITL instance, for ROS 2 Jazzy.
   </description>
   <maintainer email="asmalbatati@hotmail.com">Abdulrahman S. Al-Batati</maintainer>
-  <license>MIT</license>
+  <license>Apache-2.0</license>
 
   <exec_depend>uavros2</exec_depend>
   <exec_depend>mavros</exec_depend>

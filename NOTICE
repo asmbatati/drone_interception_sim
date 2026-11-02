@@ -1,0 +1,12 @@
+drone_interception_sim: licence notice
+
+Original work in this package is Copyright Abdulrahman S. Al-Batati and licensed under the Apache License 2.0 (see LICENSE).
+
+Files whose origin is not settled (no header added; see the A5 note in ROADMAP.md):
+
+  config/mavros/interceptor_px4_config.yaml  (new model next to a port of multi_target_kf)
+  config/mavros/interceptor_px4_pluginlists.yaml  (new model next to a port of multi_target_kf)
+  config/mavros/target_px4_config.yaml  (new model next to a port of multi_target_kf)
+  config/mavros/target_px4_pluginlists.yaml  (new model next to a port of multi_target_kf)
+  drone_interception_sim/trajectories.py  (0.43 like d2dtracker_sim/d2dtracker_sim/trajectories.py)
+  worlds/interception.sdf  (new model next to a port of multi_target_kf)
