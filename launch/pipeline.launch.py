@@ -133,7 +133,8 @@ def generate_launch_description():
         params={
             'yaw_mode': PythonExpression(
                 ["'target' if '", LaunchConfiguration('gaze'), "' == 'true' else 'velocity'"]
-            )
+            ),
+            'min_altitude': LaunchConfiguration('min_altitude'),
         },
         remaps=[
             ('predicted_trajectory', '/interceptor/predicted_trajectory'),
@@ -368,6 +369,12 @@ def generate_launch_description():
                 default_value='false',
                 description='yaw toward the target estimate instead of the direction of '
                 'travel, so a forward-looking camera keeps it in view (vision detectors)',
+            ),
+            DeclareLaunchArgument(
+                'min_altitude',
+                default_value='-1000.0',
+                description='planner: lowest reference altitude, m (the default leaves it '
+                'as planned; vision runs, whose estimate can dip below ground: 2.0)',
             ),
             DeclareLaunchArgument(
                 'cue',
