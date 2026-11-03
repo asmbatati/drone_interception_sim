@@ -320,6 +320,9 @@ def main():
     p.add_argument('run', help='campaign output dir (holds results.csv)')
     a = p.parse_args()
     df = pd.read_csv(os.path.join(a.run, 'results.csv'))
+    if 'true_outcome' in df:  # checked against Gazebo's poses by run_benchmark.py
+        df['declared_outcome'] = df.outcome
+        df['outcome'] = df.true_outcome.fillna(df.outcome)
     # traces may be stored relative to the run dir (a copied/committed run)
     df['trace_csv'] = [
         p if not isinstance(p, str) or os.path.isabs(p) else os.path.join(a.run, p)

@@ -43,10 +43,19 @@ described in a YAML file (see ``benchmarks/campaigns/*.yaml``):
   the interceptor once the sim is up;
 * each method's launch (plus a metrics launch where the method has none) runs
   in its own process group and is stopped once its summary row appears or the
-  trial times out.
+  trial times out;
+* the runner reads Gazebo's own poses of both models (gz-transport,
+  ``/world/<world>/dynamic_pose/info``) during each trial and adds
+  ``true_min_range_m`` (closest centre distance up to the moment the row was
+  written) and ``true_outcome`` to the row. The metrics outcome comes from
+  MAVROS odometry, about 0.4 m off Gazebo's poses, and a head can declare
+  capture on a ghost estimate: a ``capture`` stands only if the true range
+  came inside the capture radius, otherwise ``true_outcome`` is
+  ``false_capture``. ``true_outcome`` is empty when no poses arrived.
 
 All rows land in ``<out>/results.csv`` (the metrics summary format plus
-``scenario`` and ``trial``); per-trial 10 Hz traces in ``<out>/traces/`` and
+``scenario`` and ``trial``, then the two true-range columns); per-trial 10 Hz
+traces in ``<out>/traces/`` (``*__gz.csv``: Gazebo's poses) and
 launch logs in ``<out>/logs/``. Re-running with the same ``--out`` skips
 (method, scenario, trial) cells that already have a row, so a campaign can be
 resumed after an interruption.
@@ -71,10 +80,106 @@ import yaml
 SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 #: outcomes that are infrastructure faults: excluded from results, re-run
 RETRY_OUTCOMES = ('no_liftoff', 'error', 'scene_error', 'superseded')
+SUMMARY_COLUMNS = (
+    'method',
+    'outcome',
+    'time_to_intercept_s',
+    'min_range_m',
+    'capture_radius_m',
+    'trace_csv',
+    'time_engaged_s',
+    'scenario',
+    'trial',
+)
+#: columns the runner adds from Gazebo's poses
+TRUE_COLUMNS = ('true_min_range_m', 'true_outcome')
+#: gz model names PX4 spawns (``<model>_<instance>``): interceptor, target
+GZ_MODELS = ('x500_d435_0', 'x3_uav_1')
 
 
 def log(msg):
     print(time.strftime('[%H:%M:%S] ') + msg, flush=True)
+
+
+def min_range_until(samples, t_end):
+    """Smallest range among ``(wall_time, range, ...)`` samples up to ``t_end``."""
+    ranges = [s[1] for s in samples if s[0] <= t_end]
+    return min(ranges) if ranges else None
+
+
+def true_outcome(outcome, true_min, radius):
+    """Outcome checked against Gazebo: a capture needs the true range inside the radius."""
+    if true_min is None:
+        return ''
+    if outcome == 'capture' and true_min > radius:
+        return 'false_capture'
+    return outcome
+
+
+def annotate_last(path, true_min):
+    """Fill the true-range columns of the last row of ``path`` (header added once)."""
+    with open(path) as f:
+        rows = list(csv.reader(f))
+    header = rows[0]
+    for col in TRUE_COLUMNS:
+        if col not in header:
+            header.append(col)
+    rows = [header] + [r + [''] * (len(header) - len(r)) for r in rows[1:]]
+    last = dict(zip(header, rows[-1]))
+    try:
+        radius = float(last.get('capture_radius_m') or 'nan')
+    except ValueError:
+        radius = float('nan')
+    rows[-1][header.index('true_min_range_m')] = '' if true_min is None else f'{true_min:.3f}'
+    rows[-1][header.index('true_outcome')] = true_outcome(last['outcome'], true_min, radius)
+    with open(path, 'w', newline='') as f:
+        csv.writer(f).writerows(rows)
+    return rows[-1][header.index('true_outcome')]
+
+
+class GzPoses:
+    """Both models' positions from Gazebo's pose topic, timestamped in wall time."""
+
+    def __init__(self, partition, world, models=GZ_MODELS):
+        from gz.msgs10.pose_v_pb2 import Pose_V
+        from gz.transport13 import Node, NodeOptions
+
+        opts = NodeOptions()
+        opts.partition = partition  # the runner's own environment stays as it is
+        self.node = Node(opts)
+        self.models = tuple(models)
+        self.topic = f'/world/{world}/dynamic_pose/info'
+        self.samples = []
+        self.ok = self.node.subscribe(Pose_V, self.topic, self._on_poses)
+
+    def _on_poses(self, msg):
+        pos = {p.name: p.position for p in msg.pose if p.name in self.models}
+        if len(pos) < len(self.models):
+            return
+        a, b = (pos[m] for m in self.models)
+        r = math.dist((a.x, a.y, a.z), (b.x, b.y, b.z))
+        self.samples.append((time.time(), r, a.x, a.y, a.z, b.x, b.y, b.z))
+
+    def reset(self):
+        self.samples = []
+
+    def rate(self, seconds=2.0):
+        """Return the samples per second over the last ``seconds`` (0 if none arrive)."""
+        t0 = time.time() - seconds
+        return sum(1 for s in self.samples[-500:] if s[0] >= t0) / seconds
+
+    def write_trace(self, path, t_end, period=0.1):
+        """Write the samples up to ``t_end`` at ``period`` to a CSV."""
+        t_last = -math.inf
+        with open(path, 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['wall_time', 'range', 'ix', 'iy', 'iz', 'tx', 'ty', 'tz'])
+            for s in self.samples:
+                if s[0] > t_end:
+                    break
+                if s[0] - t_last >= period:
+                    w.writerow([f'{s[0]:.3f}'] + [f'{v:.3f}' for v in s[1:]])
+                    t_last = s[0]
 
 
 class Watch:
@@ -202,6 +307,14 @@ class Runner:
         )
         self.max_retries = int(cfg.get('max_retries', 2))
         self.watch = None if dry_run else Watch()
+        self.gz = None
+        self.row_time = None  # wall time the last summary row was written
+        if not dry_run:
+            world = (cfg.get('sim_args') or {}).get('world', 'interception')
+            try:
+                self.gz = GzPoses(self.partition, world, cfg.get('gz_models', GZ_MODELS))
+            except ImportError as e:
+                log(f'no gz-transport bindings ({e}): true range not recorded')
 
     # --- process helpers -----------------------------------------------------
     def _spawn(self, argv, logname):
@@ -269,6 +382,11 @@ class Runner:
             if self.watch.target_ok() and self.watch.connected('interceptor'):
                 log('sim ready (target airborne in OFFBOARD)')
                 self.watch.spin(5.0)
+                if self.gz is not None:
+                    log(
+                        f'gz poses {self.gz.topic} {self.gz.models}: '
+                        f'{self.gz.rate():.0f} Hz with both models'
+                    )
                 self.set_px4_params()
                 return True
         log(f'sim did not become ready in {wait:g} s ' f'({self.watch.describe("target")})')
@@ -430,20 +548,8 @@ class Runner:
         with open(self.results, 'a', newline='') as f:
             w = csv.writer(f)
             if new:
-                w.writerow(
-                    [
-                        'method',
-                        'outcome',
-                        'time_to_intercept_s',
-                        'min_range_m',
-                        'capture_radius_m',
-                        'trace_csv',
-                        'time_engaged_s',
-                        'scenario',
-                        'trial',
-                    ]
-                )
-            w.writerow([method, why, '', '', '', '', '', scen, trial])
+                w.writerow(SUMMARY_COLUMNS + TRUE_COLUMNS)
+            w.writerow([method, why, '', '', '', '', '', scen, trial, '', ''])
 
     def run_trial(self, m, scen, trial):
         name = m['name']
@@ -478,6 +584,8 @@ class Runner:
         log(f'{scen} t{trial:02d} {name}: phase delay {delay:.1f} s')
         self.watch.spin(delay)
         before = self._rows()
+        if self.gz is not None:
+            self.gz.reset()
         procs = [
             self._spawn(c, f'{scen}__{slug}__t{trial:02d}_{i}.log') for i, c in enumerate(cmds)
         ]
@@ -489,6 +597,12 @@ class Runner:
         if outcome is None:
             self._append_error(name, scen, trial, 'error')
             outcome = 'error (no metrics row)'
+        elif self.gz is not None:
+            true_min = min_range_until(self.gz.samples, self.row_time)
+            checked = annotate_last(self.results, true_min)
+            self.gz.write_trace(trace[: -len('.csv')] + '__gz.csv', self.row_time)
+            true_min = 'none' if true_min is None else f'{true_min:.3f}'
+            outcome += f' true_min={true_min}m -> {checked or "unverified"}'
         log(f'{scen} t{trial:02d} {name}: {outcome}')
         return outcome.split()[0] not in RETRY_OUTCOMES
 
@@ -498,6 +612,9 @@ class Runner:
         while time.monotonic() < t_end:
             self.watch.spin(1.0)
             if self._rows() > before:
+                # the row's write time ends the true-range window: the vehicles
+                # fly on until their launch is stopped
+                self.row_time = os.path.getmtime(self.results)
                 with open(self.results) as f:
                     last = list(csv.DictReader(f))[-1]
                 if not last.get('time_engaged_s') and last['outcome'] != 'capture':
