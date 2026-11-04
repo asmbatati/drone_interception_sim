@@ -296,6 +296,7 @@ def generate_launch_description():
                 'trial': LaunchConfiguration('trial'),
                 'csv_path': LaunchConfiguration('csv_path'),
                 'summary_csv_path': LaunchConfiguration('summary_csv_path'),
+                'referee': LaunchConfiguration('referee'),
             }
         ],
         remappings=[
@@ -439,6 +440,13 @@ def generate_launch_description():
             DeclareLaunchArgument('takeoff_alt', default_value='4.0'),
             DeclareLaunchArgument('attack_distance', default_value='3.0'),
             DeclareLaunchArgument('capture_radius', default_value='1.0'),
+            DeclareLaunchArgument(
+                'referee',
+                default_value='odom',
+                description='metrics: odom | gazebo, judge range and capture on MAVROS '
+                'odometry or on the poses Gazebo itself reports (the heads still fly on '
+                'their estimates)',
+            ),
             DeclareLaunchArgument(
                 'capture_confirm',
                 default_value='0.6',

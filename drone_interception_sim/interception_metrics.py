@@ -50,6 +50,12 @@ the same summary file and the comparison matrix builds itself.
 Launch under the interceptor namespace (or remap the two odom topics). Both
 odometries are in their own EKF/spawn frame, so spawn offsets are added to get a
 common frame (defaults match drone_interception_sim).
+
+``referee:=gazebo`` judges everything above (range, capture, liftoff, landing,
+the trace) on Gazebo's own poses of both models instead (``gz_referee``): the
+interceptor's odometry is up to about 1 m off, which made most odometry
+captures 1-2 m short of a true one. The methods still fly on their own
+estimates. With no fresh Gazebo pose the node pauses rather than fall back.
 """
 
 import csv
@@ -59,6 +65,8 @@ from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+
+from .gz_referee import GZ_MODELS, GzReferee
 
 
 class InterceptionMetrics(Node):
@@ -77,6 +85,18 @@ class InterceptionMetrics(Node):
         self.declare_parameter('landed_height', 0.3)
         self.declare_parameter('scenario', '')
         self.declare_parameter('trial', -1)
+        self.declare_parameter('referee', 'odom')  # odom | gazebo
+        self.declare_parameter('gz_world', 'interception')
+        self.declare_parameter('gz_models', list(GZ_MODELS))
+
+        self.referee = self.get_parameter('referee').value
+        if self.referee not in ('odom', 'gazebo'):
+            raise RuntimeError(f"referee must be 'odom' or 'gazebo', got {self.referee!r}")
+        self.gz = None
+        if self.referee == 'gazebo':
+            self.gz = GzReferee(
+                self.get_parameter('gz_world').value, self.get_parameter('gz_models').value
+            )
 
         self.method = self.get_parameter('method').value
         self.capture_radius = self.get_parameter('capture_radius').value
@@ -115,7 +135,7 @@ class InterceptionMetrics(Node):
         self.create_timer(0.1, self._tick)
         self.get_logger().info(
             f'Metrics started (method={self.method}, capture_radius='
-            f'{self.capture_radius} m) -> {self.csv_path}'
+            f'{self.capture_radius} m, referee={self.referee}) -> {self.csv_path}'
         )
 
     def _int_cb(self, msg):
@@ -132,10 +152,22 @@ class InterceptionMetrics(Node):
         return self.get_clock().now().nanoseconds * 1e-9
 
     def _tick(self):
-        if self.done or self.interceptor is None or self.target is None:
+        if self.done:
             return
-        ix, iy, iz = self._world(self.interceptor, self.ispawn)
-        tx, ty, tz = self._world(self.target, self.tspawn)
+        if self.gz is not None:
+            poses = self.gz.latest()
+            if poses is None:
+                self.get_logger().warn(
+                    f'no fresh Gazebo poses on {self.gz.topic}: refereeing paused',
+                    throttle_duration_sec=5.0,
+                )
+                return
+            (ix, iy, iz), (tx, ty, tz) = poses
+        else:
+            if self.interceptor is None or self.target is None:
+                return
+            ix, iy, iz = self._world(self.interceptor, self.ispawn)
+            tx, ty, tz = self._world(self.target, self.tspawn)
         rng = math.sqrt((tx - ix) ** 2 + (ty - iy) ** 2 + (tz - iz) ** 2)
 
         now = self._now()

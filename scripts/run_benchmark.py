@@ -51,7 +51,10 @@ described in a YAML file (see ``benchmarks/campaigns/*.yaml``):
   MAVROS odometry, about 0.4 m off Gazebo's poses, and a head can declare
   capture on a ghost estimate: a ``capture`` stands only if the true range
   came inside the capture radius, otherwise ``true_outcome`` is
-  ``false_capture``. ``true_outcome`` is empty when no poses arrived.
+  ``false_capture``. ``true_outcome`` is empty when no poses arrived;
+* ``referee: gazebo`` in the campaign makes the metrics logger itself judge
+  range and capture on Gazebo's poses, so a trial runs until a true capture
+  (the metrics outcome and ``true_outcome`` then agree).
 
 All rows land in ``<out>/results.csv`` (the metrics summary format plus
 ``scenario`` and ``trial``, then the two true-range columns); per-trial 10 Hz
@@ -562,6 +565,8 @@ class Runner:
             'csv_path': trace,
             'summary_csv_path': self.results,
         }
+        if self.cfg.get('referee'):  # odom | gazebo, see interception_metrics
+            label['referee'] = str(self.cfg['referee'])
         pkg, launch_file, args = m['launch']
         # '~' and $VARS in launch args expand (e.g. a policy path under $HOME)
         args = {k: os.path.expanduser(os.path.expandvars(str(v))) for k, v in (args or {}).items()}

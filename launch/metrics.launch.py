@@ -43,6 +43,12 @@ def generate_launch_description():
             DeclareLaunchArgument('scenario', default_value=''),
             DeclareLaunchArgument('trial', default_value='-1'),
             DeclareLaunchArgument(
+                'referee',
+                default_value='odom',
+                description='odom | gazebo: judge range and capture on MAVROS odometry or on '
+                'the poses Gazebo itself reports',
+            ),
+            DeclareLaunchArgument(
                 'interceptor_odom', default_value='/interceptor/mavros/local_position/odom'
             ),
             DeclareLaunchArgument(
@@ -61,6 +67,7 @@ def generate_launch_description():
                         'summary_csv_path': LaunchConfiguration('summary_csv_path'),
                         'scenario': LaunchConfiguration('scenario'),
                         'trial': LaunchConfiguration('trial'),
+                        'referee': LaunchConfiguration('referee'),
                         'use_sim_time': True,
                     }
                 ],
