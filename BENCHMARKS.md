@@ -8,6 +8,40 @@ controller was re-flown with its corrected thrust model. Data, traces and figure
 [`benchmarks/2026-10-30_pipeline_vs_pn/`](benchmarks/2026-10-30_pipeline_vs_pn/).
 It replaces the June 2026 single-run table (kept at the end for history).
 
+## Gazebo-checked re-run (B14, 3–4 Nov 2026): read this first
+
+The capture counts in **Results** below are measured on MAVROS odometry. Gazebo's
+own poses show that this overstates them: the same campaign, re-run with the
+KF fix (`interception_estimation` f6c1d90) and the runner recording Gazebo's
+closest centre distance per trial (`true_min_range_m`), gave 152 declared
+captures in 200 trials, of which **30 came inside 1.0 m by Gazebo**. At a
+declared capture the true range was a median 0.52 m (p90 1.14 m) larger than
+the odometry range; the error is mostly the interceptor's EKF height (0.5–0.65 m
+off on the ground, up to 1.1 m in flight), while the target's odometry agrees
+with Gazebo. A trial ends at the odometry capture, so a method gets no chance to
+close the rest. Data: [`benchmarks/2026-11-03_b14_gz_checked/`](benchmarks/2026-11-03_b14_gz_checked/)
+(`report/` counts `true_outcome`).
+
+Declared captures of 10 trials, and how many of them Gazebo puts within 1.0 / 1.5 / 2.0 m:
+
+| method | circle: declared | ≤1.0 | ≤1.5 | ≤2.0 | evade: declared | ≤1.0 | ≤1.5 | ≤2.0 |
+|---|---|---|---|---|---|---|---|---|
+| rendezvous+gru | 10 | 0 | 5 | 8 | 9 | 5 | 7 | 8 |
+| rendezvous+const_vel | 10 | 2 | 5 | 10 | 10 | 1 | 3 | 9 |
+| tail_chase+gru | 10 | 2 | 5 | 8 | 10 | 3 | 8 | 10 |
+| rendezvous+gru+mpc_12state | 10 | 2 | 5 | 10 | 10 | 2 | 7 | 9 |
+| rendezvous+gru+se3 | 10 | 2 | 7 | 8 | 4 | 1 | 3 | 4 |
+| bt/rendezvous+gru | 10 | 1 | 2 | 9 | 9 | 1 | 7 | 8 |
+| pn | 1 | 1 | 1 | 1 | 2 | 0 | 1 | 1 |
+| pursuit | 9 | 4 | 6 | 9 | 10 | 2 | 7 | 8 |
+| pn_int | 9 | 0 | 7 | 9 | 9 | 1 | 5 | 9 |
+| rl/model_evasive_40k | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+Total 152 declared: 30 within 1.0 m, 91 within 1.5 m, 138 within 2.0 m.
+Declared counts are close to the odometry campaign below (SE3 on evade fell from
+10 to 4; PN on circle from 4 to 1). Ten trials per cell do not separate methods
+whose confirmed counts differ by one or two.
+
 ## Setup
 
 - **Scene:** `interception.launch.py`, headless. Interceptor `x500_d435`
@@ -17,8 +51,9 @@ It replaces the June 2026 single-run table (kept at the end for history).
   - `circle`: the scripted circle.
   - `evade`: the same circle, plus a reactive push away from the interceptor
     once it is within 6 m (offset up to 4 m, stronger the closer it gets).
-- **Capture:** ground-truth range ≤ 1.0 m (both vehicles' odometry in one world
-  frame), sampled at 10 Hz by `interception_metrics`. No vision in the loop:
+- **Capture:** odometry range ≤ 1.0 m (both vehicles' MAVROS odometry in one
+  world frame; not Gazebo's poses, see the B14 section above), sampled at 10 Hz
+  by `interception_metrics`. No vision in the loop:
   every pipeline method uses the `ground_truth` detector (see B10 in
   `ROADMAP.md`).
 - **Outcomes:** `capture`; `timeout` (no capture in 120 s); `miss` (the
