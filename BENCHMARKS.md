@@ -1,12 +1,12 @@
 # Interception benchmark
 
 Capture benchmark of every interception method that flies in the two-drone
-scene, 10 trials per method and target behaviour. Run 30–31 Oct 2026 with
-`scripts/run_benchmark.py`. On 1 Nov textbook PN (`pn_int`), the last 5
-cells and the fixed OSQP MPC (`mpc_12state`) were added, and the SE(3)
-controller was re-flown with its corrected thrust model. Data, traces and figures are in
-[`benchmarks/2026-10-30_pipeline_vs_pn/`](benchmarks/2026-10-30_pipeline_vs_pn/).
-It replaces the June 2026 single-run table (kept at the end for history).
+scene, 10 trials per method and target behaviour, run with
+`scripts/run_benchmark.py`. The current numbers are the Gazebo-refereed
+campaign of 4–6 Nov 2026 (next section; Findings and Caveats below refer to
+it). The odometry-refereed campaign of 30 Oct – 2 Nov
+([`benchmarks/2026-10-30_pipeline_vs_pn/`](benchmarks/2026-10-30_pipeline_vs_pn/))
+and the June 2026 single-run table are kept for history.
 
 ## Gazebo-refereed results (B14, 4–6 Nov 2026): read this first
 
@@ -80,9 +80,10 @@ whose confirmed counts differ by one or two.
   - `circle`: the scripted circle.
   - `evade`: the same circle, plus a reactive push away from the interceptor
     once it is within 6 m (offset up to 4 m, stronger the closer it gets).
-- **Capture:** odometry range ≤ 1.0 m (both vehicles' MAVROS odometry in one
-  world frame; not Gazebo's poses, see the B14 section above), sampled at 10 Hz
-  by `interception_metrics`. No vision in the loop:
+- **Capture:** range ≤ 1.0 m between the two models' origins, sampled at 10 Hz
+  by `interception_metrics`. Since 6 Nov judged on Gazebo's own poses
+  (`referee: gazebo` in the campaign); the odometry-refereed history table used
+  both vehicles' MAVROS odometry in one world frame. No vision in the loop:
   every pipeline method uses the `ground_truth` detector (see B10 in
   `ROADMAP.md`).
 - **Outcomes:** `capture`; `timeout` (no capture in 120 s); `miss` (the
@@ -114,7 +115,10 @@ whose confirmed counts differ by one or two.
 | `pn_int` | same node, textbook constant-speed PN (N = 3) integrated on the commanded velocity at 6 m/s (`law:=pn_int`) |
 | `rl/model_evasive_40k` | `shaheen_rl` `policy_head`: the evasive-stage SAC policy (trained in AeroGym against a 0.5 m/s target), velocity commands up to 8 m/s |
 
-## Results
+## Odometry-refereed results (30 Oct – 2 Nov 2026, superseded)
+
+Captures judged on MAVROS odometry, before the KF fix: kept for history. Use the
+Gazebo-refereed table at the top of this file.
 
 ![capture rate](benchmarks/2026-10-30_pipeline_vs_pn/report/capture_rate.png)
 
@@ -158,110 +162,87 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
 
 ## Findings
 
-- **The Behaviour-Tree head is the strongest method:** 20/20 captures, the
-  fastest on the circle. Under evasion the BT head, pursuit and SE(3) are within
-  0.6 s of each other (9.3–9.9 s) and `pn_int` is quicker (7.7 s) but captures
-  8/10. Most of its lead over the FSM head (4.6 s vs 9.6 s on the circle) is
-  take-off. The altitude traces show the FSM head spends 3.7–5.3 s in PX4's
-  AUTO.TAKEOFF before OFFBOARD pursuit starts, while the BT climbs on its own
-  OFFBOARD setpoints and often captures before it reaches 3.5 m. After take-off
-  both heads fly the same rendezvous + GRU reference.
-- **Pure pursuit at 6 m/s also captures every time (20/20)**, a few seconds
-  slower than the BT head. It is a strong, simple baseline at this target speed.
-- **Textbook PN (`pn_int`) is the quickest once airborne:** 17/20 in a median
-  7.7 s from liftoff in both scenarios, the fastest under evasion (BT head
-  9.9 s, pursuit 9.6 s) and with the tightest spread. Its 3 misses passed just
-  outside the capture sphere (1.02–1.83 m) and came back down. In AeroGym the
-  same law overshoots out of the 60 m arena against faster, straight-fleeing
-  targets (`shaheen_rl/RESULTS.md`, C4); here the target circles and the
-  scene has no arena limit.
-- **The June PN law fails** (5/20). With correct velocities it settles into an
-  orbit around the circling target: closest approach is 1.6 m on the circle and
-  2.6 m under evasion. Its June capture came from the odometry-frame bug (B3/B4
-  in `ROADMAP.md`).
-- **GRU vs constant-velocity forecast:** equal on the circle (10/10 each,
-  9.6 vs 9.5 s). Under evasion, constant velocity is better: 9/10 in a median
-  10.3 s, against 8/10 in 22.1 s with a wide spread. One untested explanation is
-  that the GRU's 1 s forecast lags the evasive push, where constant velocity
-  follows each change at once. Logging forecast error per trial would settle it.
-  The training data of the shipped GRU weights is not documented here.
-- **Rendezvous is faster than tail chase:** 8/10 each under evasion, in a
-  median 22.1 s against 28.5 s; on the circle 10/10 each, 9.6 s against 12.6 s.
-- **The SE(3) geometric controller holds up once its thrust model is right:**
-  19/20, in a median 9.1 s (circle) and 9.3 s (evade) from liftoff, level
-  with the FSM head's PX4 position control on the circle and faster under
-  evasion. Its first campaign (6/10, 1/10) assumed 34 N of thrust; PX4's
-  hover-thrust estimate for `x500_d435` (0.79) gives 30.5 N, a thrust/weight
-  of 1.26. Chasing at up to 45° of tilt then saturated the throttle, and the
-  acceleration clip scaled gravity's share down with the rest, so the vehicle
-  sank: its misses passed 2–4 m *under* the target, often within 1 m
-  horizontally. `hover_thrust` and a vertical-first acceleration clip
-  (`interception_control` `cf5d9d4`) fixed it. It also needs the correct mass
-  (2.466 kg) to fly at all (B6).
-- **The OSQP MPC (`mpc_12state`) flies the cascade:** 18/20, level with the
-  passthrough pipeline it wraps (10/10 and 8/10). It is slower on the circle
-  (13.0 s against 9.6 s). Under evasion it is quicker and steadier: 11.9 s
-  [8.9–15.3] against 22.1 s [10.7–45.2]. Its 2 misses are the FSM head's: it
-  declared capture on the KF estimate (0.97 and 0.99 m) while the true range
-  was 1.12 and 1.02 m. Before 1 Nov it trailed the target (closest 2.7 m).
-  Each solve started at zero acceleration, so under the 5 m/s³ jerk limit the
-  plan never built up speed. Each solve now starts from the previous plan's
-  acceleration (`interception_mpc` `2671cf5`). A seeded solve can turn
-  infeasible while the vertical plan climbs, because the ported core then
-  shrinks the horizontal velocity bound. Such solves are re-solved from zero
-  acceleration; before that retry, one smoke trial lost 62 s of commands and
-  timed out. The controller tracks the plan's 1.0 s sample, the pipeline's
-  default for this backend. PX4 turns a position setpoint into 0.95 times the
-  lead as velocity, so the sample must lead the drone by about 1 s. With 0.3 s
-  the drone hovers.
-- **FSM capture gate (2 Nov): 40/40.** `pipeline_fsm` now declares capture only after the
-  estimated range stays inside the radius for 0.6 s on fresh estimates
-  (`capture_confirm`, `4784b42`). Re-run of the two FSM-head pipelines, 10 trials per
-  cell, same scene and seeds (`benchmarks/2026-11-02_fsm_capture_gate/`): passthrough
-  10/10 on the circle and 10/10 under evasion, `mpc_12state` 10/10 and 10/10, closest
-  approach at most 1.00 m. Before the gate these cells were 10/10 and 8/10 (passthrough)
-  and 10/10 and 8/10 (`mpc_12state`), so 40/40 against 36/40; Fisher p = 0.12, so the
-  run agrees with the fix but does not prove it on its own. 43 trial starts were
-  re-run as infrastructure faults: the target's PX4 got no sensor data until
-  `uavros2` `c383bc9` (a second `gz sim` server per launch), and 16 interceptor
-  preflight checks failed and were retried by the runner.
-- **Vision in the loop (2 Nov, first run): the pipeline flies on `detector:=depth` but does not
-  capture.** With the target circle moved to 12 m from the interceptor (`target_center:=2,0,4`, so
-  the 10 m depth clip sees it part of the time), 3 trials, passthrough pipeline: 0/3 captures,
-  closest approach 4.2, 2.6 and 3.3 m (`benchmarks/2026-11-02_depth_detector/`). In the standard
-  scene (circle centre 20 m away) the depth camera never sees the target and the interceptor
-  stays at its start (closest 14.0-14.1 m, 3/3 timeouts). The detector itself found the target:
-  157 detection messages in a 70 s hover 12 m out. Tuning the blob detector for the
-  noise-free sim depth is the next step.
-- **The RL policy does not transfer to this scene** (2/20). It was trained
-  against a 0.5 m/s target; here the target flies at 2.4 m/s. The
-  speed-generalisation sweep and the speed curriculum (C4, C6) target this gap.
+From the Gazebo-refereed campaign at the top of this file (200 trials, 10 per
+cell, `benchmarks/2026-11-04_b14_referee/`). Fisher exact tests are two-sided;
+"head-declared" means the method's own node logged a capture (FSM `CAPTURE
+(range=`, BT and guidance `Target captured`) before the referee saw one.
+
+- **Most failures are early capture declarations, not bad guidance.** 44 of the
+  60 misses followed a capture the head declared on its own estimate: it then
+  flew home and the referee never saw the vehicles within 1.0 m. In every cell
+  apart from PN and RL, the non-captures' closest true approach was a median
+  1.0–1.6 m. Every head judges capture on the
+  interceptor's MAVROS odometry, whose position error at a declared capture is a
+  median 0.52 m (B14 odometry run below), mostly the EKF height. A head that
+  checked its capture against a better self-position would convert many of these
+  near misses; the guidance itself got there.
+- **Pure pursuit at 6 m/s is the most reliable method:** 18/20 (8/10 circle,
+  10/10 evade), no misses, a median 12.4 and 13.3 s from liftoff. Its 2
+  non-captures are timeouts on the circle.
+- **The June PN law fails:** 2/20, against pursuit's 18/20 (p < 0.001). With
+  correct velocities it settles into an orbit around the circling target (17
+  timeouts; closest approach median 1.4 m on the circle, 1.8 m under evasion).
+  Its June capture came from the odometry-frame bug (B3/B4 in `ROADMAP.md`).
+- **Textbook PN (`pn_int`) is the quickest when it captures but declares too
+  early:** 8/20, in a median 7.7 s (circle) and 8.4 s (evade) from liftoff, the
+  fastest of all methods. 11 of its 12 misses were head-declared, at a true
+  closest approach of about 1.4 m: its capture check fires on odometry before the
+  true range closes.
+- **The SE(3) geometric controller is the best on the circle and weak under
+  evasion:** 10/10 on the circle (median 10.1 s), 4/10 under evasion (4
+  timeouts, 2 misses that came down without a declaration); p = 0.011 between
+  the scenarios. On the odometry referee it was 19/20, so its evade captures were
+  mostly short of a true one.
+- **The Behaviour-Tree head is the strongest mission head:** 17/20 (9/10, 8/10)
+  against the FSM head's 12/20 (8/10, 4/10) on the same rendezvous + GRU
+  reference; p = 0.16, so not resolved at 10 trials. It is the fastest on the
+  circle (median 5.0 s from liftoff, against 10.7 s): the FSM head spends
+  3.7–5.3 s in PX4's AUTO.TAKEOFF before pursuing, while the BT climbs on its own
+  OFFBOARD setpoints.
+- **The OSQP MPC (`mpc_12state`) helps under evasion:** 15/20 (8/10, 7/10),
+  against 12/20 for the passthrough pipeline it wraps; under evasion 7/10 in a
+  median 11.0 s against 4/10 in 21.1 s (p = 0.37). All 4 of its misses were
+  head-declared; on the circle it is slower (14.0 s against 10.7 s).
+- **GRU against constant-velocity forecast: no difference** at ground-truth
+  detection, 12/20 each (p = 1.0), with similar times (circle 10.7 / 9.8 s,
+  evade 21.1 / 25.4 s).
+- **Rendezvous beats tail chase on the circle:** 8/10 against 3/10 (p = 0.07);
+  all 7 tail-chase misses were head-declared. Under evasion both are 4–5/10.
+- **The RL policy does not transfer to this scene:** 0/20, closest approach a
+  median 3.3 m (circle) and 3.5 m (evade). It was trained against a 0.5 m/s
+  target; here the target flies at 2.4 m/s (C4–C6 in `ROADMAP.md`).
+- **Vision in the loop** (`detector:=depth_cc`, not part of this campaign) reaches
+  at most 2/5 Gazebo-confirmed captures after the estimator fixes; see B10 in
+  `ROADMAP.md`.
+
+Fixes these numbers rest on (details in `ROADMAP.md`): the body-to-world odometry
+twist (B3), the SE(3) thrust model and mass (B6, `interception_control` cf5d9d4),
+the MPC's warm-started acceleration (B5, `interception_mpc` 2671cf5), the FSM
+capture gate (B11, 4784b42), the `/clock` bridge start (B8, 35bce3c), the
+target-PX4 start-up fault (B12, `uavros2` c383bc9) and the KF covariance
+prediction (B10, `interception_estimation` f6c1d90; every pipeline result before
+3 Nov ran on the broken filter).
 
 ## Caveats
 
-- Simulation only, with ground-truth target detection.
-- One target speed (2.4 m/s) and one geometry.
-- Capture is a 1.0 m sphere at 10 Hz. `closest approach` at capture only shows
-  where sampling crossed the radius.
-- 140 attempts were excluded and re-run: 114 scenes that could not be made
-  healthy, 23 SE(3) rows superseded (3 by the mass fix, the 20 of the first
-  campaign by the thrust fix; their trace files were overwritten by the
-  re-flights and stay in git history), and 3 runner errors. `summary.csv` counts them per method (`errors`).
-  The main causes:
-  - After any capture with contact the interceptor's PX4 failed its preflight
-    check (EKF magnetometer fault), forcing a sim restart.
-  - About 40 % of restarts never got the target airborne: it stayed disarmed
-    in AUTO.LOITER. Found on 1 Nov: the ROS `/clock` bridge, started with the
-    launch before PX4 brought the gz server up, sometimes passed no clock on.
-    Every `use_sim_time` node froze, including the target node, which then
-    never streamed setpoints or asked for OFFBOARD (6 of 14 starts that
-    morning). The bridge now waits until gz publishes `/clock`
-    (`interceptor.launch.py`); the next 20 starts were all healthy.
-- Excluding faults keeps each valid trial clean, but a method is never run on a
-  degraded scene, so these are best-case rates.
-- The campaign shared the machine with up to four other simulation sessions
-  (load average 8–60), which was not controlled for. Gazebo and PX4 SITL run in
-  lockstep; the ROS controllers run on wall-clock timers.
+- Simulation only. Every pipeline method uses the `ground_truth` detector;
+  vision is not in this campaign.
+- One target speed (2.4 m/s), one geometry, one capture radius (1.0 m between
+  model origins, refereed on Gazebo's poses at 10 Hz from a 50 Hz topic).
+- The methods are refereed on truth but fly on their own estimates, as a real
+  system would; their capture declarations use odometry, which the referee does
+  not. This is the main reason for the gap to the odometry-refereed numbers.
+- Ten trials per cell: a Wilson 95 % interval on 5/10 is 24–76 %. Only the
+  Of the comparisons above, only pursuit against PN and SE(3) circle against
+  evade are significant at p < 0.05.
+- 3 trial starts were infrastructure faults and were re-run (2 no-liftoff, 1
+  scene that could not be made healthy); 35 sim starts in all. Excluding faults
+  keeps each valid trial clean, but a method is never run on a degraded scene.
+- The campaign shared the machine with other simulation sessions, which was not
+  controlled for. Gazebo and PX4 SITL run in lockstep; the ROS controllers run on
+  wall-clock timers.
+- The odometry-refereed table above (30 Oct – 2 Nov) is kept for history; its
+  capture counts are not comparable with the refereed ones.
 
 ## Reproduce
 
@@ -275,7 +256,10 @@ python3 ros2_ws/src/drone_interception_sim/scripts/analyze_benchmark.py ~/benchm
 ```
 
 The runner starts and stops the sim itself, using `partition` and `domain` from
-the campaign file. This campaign needed four passes between 30 Oct 05:00 and
+the campaign file, which sets `referee: gazebo`. The refereed campaign took
+8 h unattended on 4 Nov (05:14–13:20, one pass), plus one re-run trial on
+6 Nov. The
+odometry-refereed campaign needed four passes between 30 Oct 05:00 and
 31 Oct 05:00 (with pauses for runner fixes), mostly spent on sim restarts; the
 `pn_int` rows and the last 5 cells took about an hour on 1 Nov, the
 `mpc_12state` rows another hour.
