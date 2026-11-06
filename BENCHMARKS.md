@@ -8,7 +8,36 @@ controller was re-flown with its corrected thrust model. Data, traces and figure
 [`benchmarks/2026-10-30_pipeline_vs_pn/`](benchmarks/2026-10-30_pipeline_vs_pn/).
 It replaces the June 2026 single-run table (kept at the end for history).
 
-## Gazebo-checked re-run (B14, 3–4 Nov 2026): read this first
+## Gazebo-refereed results (B14, 4–6 Nov 2026): read this first
+
+The same campaign (10 methods, circle and evade, 10 trials each, seed 1) with
+`referee: gazebo`: the metrics logger judges range and capture on Gazebo's own
+poses of both models (`gz_referee.py`, `drone_interception_sim` be78cf2), so a
+trial runs until the vehicles are truly within 1.0 m, while every method still
+flies on its own estimates. KF fix included (`interception_estimation` f6c1d90).
+200 valid trials (3 infrastructure faults re-run, 35 sim starts). The runner's
+independent Gazebo reading agrees with the referee's closest range within
+0.09 m in every cell. Data: [`benchmarks/2026-11-04_b14_referee/`](benchmarks/2026-11-04_b14_referee/).
+
+| method | circle captures | liftoff-to-capture median (s) | evade captures | liftoff-to-capture median (s) |
+|---|---|---|---|---|
+| rendezvous+gru | 8/10 | 10.7 | 4/10 | 21.1 |
+| rendezvous+const_vel | 7/10 | 9.8 | 5/10 | 25.4 |
+| tail_chase+gru | 3/10 | 14.2 | 5/10 | 29.1 |
+| rendezvous+gru+mpc_12state | 8/10 | 14.0 | 7/10 | 11.0 |
+| rendezvous+gru+se3 | **10/10** | 10.1 | 4/10 | 10.5 |
+| bt/rendezvous+gru | 9/10 | 5.0 | 8/10 | 28.9 |
+| pn | 1/10 | 11.3 | 1/10 | 26.8 |
+| pursuit | 8/10 | 12.4 | **10/10** | 13.3 |
+| pn_int | 6/10 | 7.7 | 2/10 | 8.4 |
+| rl/model_evasive_40k | 0/10 | — | 0/10 | — |
+
+Total 106/200 (53 %). The odometry-refereed campaign below declared 156/200;
+judged on Gazebo after the fact, only 30 of those declared captures were within
+1.0 m (next section). Ten trials per cell: a Wilson 95 % interval on 5/10 is
+24–76 %, so only large differences between methods are resolved.
+
+## Gazebo-checked odometry run (B14, 3–4 Nov 2026)
 
 The capture counts in **Results** below are measured on MAVROS odometry. Gazebo's
 own poses show that this overstates them: the same campaign, re-run with the
