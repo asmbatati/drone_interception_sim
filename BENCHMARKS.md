@@ -164,18 +164,17 @@ time: [circle](benchmarks/2026-10-30_pipeline_vs_pn/report/range_circle.png),
 
 From the Gazebo-refereed campaign at the top of this file (200 trials, 10 per
 cell, `benchmarks/2026-11-04_b14_referee/`). Fisher exact tests are two-sided;
-"head-declared" means the method's own node logged a capture (FSM `CAPTURE
-(range=`, BT and guidance `Target captured`) before the referee saw one.
+"head-declared" means the FSM head (`CAPTURE (range=`) or the BT head (`Target
+captured (latched)`) logged a capture before the referee saw one; both then switch
+to AUTO.RTL. The guidance node only logs its own check and flies on.
 
-- **Most failures are early capture declarations, not bad guidance.** 44 of the
-  60 misses followed a capture the head declared on its own estimate: it then
-  flew home and the referee never saw the vehicles within 1.0 m. In every cell
-  apart from PN and RL, the non-captures' closest true approach was a median
-  1.0–1.6 m. Every head judges capture on the
-  interceptor's MAVROS odometry, whose position error at a declared capture is a
-  median 0.52 m (B14 odometry run below), mostly the EKF height. A head that
-  checked its capture against a better self-position would convert many of these
-  near misses; the guidance itself got there.
+- **The mission heads' early capture declarations are the largest single
+  failure.** 33 of the 60 misses followed a capture the FSM or BT head declared
+  on its own estimate and then flew home; of their 55 declarations, 22 were true
+  captures. In every cell apart from PN and RL, the non-captures' closest true
+  approach was a median 1.0–1.6 m. The heads judge capture on the interceptor's
+  MAVROS odometry, whose position error at a declared capture is a median 0.52 m
+  (B14 odometry run below), mostly the EKF height.
 - **Pure pursuit at 6 m/s is the most reliable method:** 18/20 (8/10 circle,
   10/10 evade), no misses, a median 12.4 and 13.3 s from liftoff. Its 2
   non-captures are timeouts on the circle.
@@ -183,11 +182,11 @@ cell, `benchmarks/2026-11-04_b14_referee/`). Fisher exact tests are two-sided;
   correct velocities it settles into an orbit around the circling target (17
   timeouts; closest approach median 1.4 m on the circle, 1.8 m under evasion).
   Its June capture came from the odometry-frame bug (B3/B4 in `ROADMAP.md`).
-- **Textbook PN (`pn_int`) is the quickest when it captures but declares too
-  early:** 8/20, in a median 7.7 s (circle) and 8.4 s (evade) from liftoff, the
-  fastest of all methods. 11 of its 12 misses were head-declared, at a true
-  closest approach of about 1.4 m: its capture check fires on odometry before the
-  true range closes.
+- **Textbook PN (`pn_int`) is the quickest when it captures:** 8/20, in a median
+  7.7 s (circle) and 8.4 s (evade) from liftoff, the fastest of all methods. Its
+  12 misses passed 1.02–1.81 m from the target (median 1.39 m) and the
+  interceptor came down 11–98 s later: these are guidance misses, not early
+  declarations.
 - **The SE(3) geometric controller is the best on the circle and weak under
   evasion:** 10/10 on the circle (median 10.1 s), 4/10 under evasion (4
   timeouts, 2 misses that came down without a declaration); p = 0.011 between

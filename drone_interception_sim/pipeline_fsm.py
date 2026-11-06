@@ -23,7 +23,13 @@ it only manages arming + PX4 flight mode + the mission phase, exactly the role
 the old shaheen_states FSM played in the original framework:
 
     Idle -> Arm -> Takeoff(AUTO.TAKEOFF) -> Pursue(OFFBOARD) -> Attack(OFFBOARD)
-         -> Return(AUTO.RTL) -> Done
+         [-> FollowThrough(OFFBOARD, follow_through s)] -> Return(AUTO.RTL) -> Done
+
+The capture check runs on the KF estimate against the interceptor's odometry,
+which is up to about 1 m off its true position; ``follow_through`` keeps the
+cascade flying at the target for that long after the check passes, so a check
+that fires short of the target does not end the run (Gazebo-refereed benchmark
+of 4 Nov 2026: 33 of 60 misses were heads that returned after such a check).
 
 Because PX4 ignores OFFBOARD setpoints unless it is in OFFBOARD mode, the cascade
 can stream the whole time and this node just switches modes: it climbs with
@@ -59,6 +65,9 @@ class PipelineFSM(Node):
         # The estimate must stay inside capture_radius this long (s) to count.
         self.capture_confirm = float(self.declare_parameter('capture_confirm', 0.6).value)
         self.gate = CaptureGate(self.capture_radius, self.capture_confirm)
+        # Keep pursuing this long (s) after the capture check passes (0: return at once).
+        self.follow_through = float(self.declare_parameter('follow_through', 0.0).value)
+        self.t_follow = None
 
         self.phase = 'Idle'
         self.state = State()
@@ -169,13 +178,27 @@ class PipelineFSM(Node):
             rng = self._range()
             if self.gate.update(rng, self._now(), self._detected()):
                 self.captured = True
-                self.get_logger().info(f'CAPTURE (range={rng:.2f} m) -> returning')
-                self._to('Return')
+                if self.follow_through > 0.0:
+                    self.get_logger().info(
+                        f'CAPTURE (range={rng:.2f} m) -> following through '
+                        f'{self.follow_through:g} s'
+                    )
+                    self.t_follow = self._now()
+                    self._to('FollowThrough')
+                else:
+                    self.get_logger().info(f'CAPTURE (range={rng:.2f} m) -> returning')
+                    self._to('Return')
             elif not self._detected() or rng > 2.0 * self.attack_distance:
                 # lost the track or the close approach: fall back to pursue
                 # rather than act on a stale estimate
                 self.gate.reset()
                 self._to('Pursue')
+
+        elif self.phase == 'FollowThrough':
+            # the cascade keeps streaming setpoints at the target estimate
+            self._request_mode('OFFBOARD')
+            if self._now() - self.t_follow >= self.follow_through:
+                self._to('Return')
 
         elif self.phase == 'Return':
             self._request_mode('AUTO.RTL')

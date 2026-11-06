@@ -211,6 +211,7 @@ def generate_launch_description():
                 'attack_distance': LaunchConfiguration('attack_distance'),
                 'capture_radius': LaunchConfiguration('capture_radius'),
                 'capture_confirm': LaunchConfiguration('capture_confirm'),
+                'follow_through': LaunchConfiguration('follow_through'),
             }
         ],
         remappings=[
@@ -245,6 +246,7 @@ def generate_launch_description():
                 'takeoff_height': LaunchConfiguration('takeoff_alt'),
                 'attack_distance': LaunchConfiguration('attack_distance'),
                 'capture_radius': LaunchConfiguration('capture_radius'),
+                'follow_through': LaunchConfiguration('follow_through'),
             }
         ],
         remappings=[
@@ -452,6 +454,12 @@ def generate_launch_description():
                 default_value='0.6',
                 description='fsm head: s the estimated range must stay '
                 'inside capture_radius to count as capture',
+            ),
+            DeclareLaunchArgument(
+                'follow_through',
+                default_value='0.0',
+                description='fsm and bt heads: s to keep pursuing after their capture check '
+                'passes before returning (the check uses odometry, up to about 1 m off)',
             ),
             DeclareLaunchArgument('metrics', default_value='false'),
             DeclareLaunchArgument('csv_path', default_value='/tmp/pipeline_metrics.csv'),
