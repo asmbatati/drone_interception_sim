@@ -1,0 +1,13 @@
+scenario,method,trials,captures,capture_rate,ci_lo,ci_hi,errors,t_engaged_median_s,t_engaged_q1_s,t_engaged_q3_s,t_total_median_s,min_range_median_m,min_range_max_m
+circle,pipeline/rendezvous+gru+passthrough+px4_setpoint,10,10,1.000,0.722,1.000,0,12.050,10.125,19.200,18.785,0.962,0.999
+circle,pipeline/rendezvous+const_vel+passthrough+px4_setpoint,10,5,0.500,0.237,0.763,0,13.800,11.300,14.500,20.020,1.006,1.508
+circle,pipeline/tail_chase+gru+passthrough+px4_setpoint,10,9,0.900,0.596,0.982,0,11.300,10.200,12.600,17.990,0.988,1.292
+circle,pipeline/rendezvous+gru+mpc_12state+px4_setpoint,10,8,0.800,0.490,0.943,0,10.050,9.775,12.000,17.470,0.936,3.081
+circle,pipeline/rendezvous+gru+passthrough+se3,10,4,0.400,0.168,0.687,0,10.400,9.250,11.900,16.680,1.048,1.531
+circle,bt/rendezvous+gru,10,10,1.000,0.722,1.000,0,7.400,4.500,13.300,19.440,0.975,0.999
+evade,pipeline/rendezvous+gru+passthrough+px4_setpoint,10,6,0.600,0.313,0.832,0,27.700,16.850,41.475,32.795,0.973,1.594
+evade,pipeline/rendezvous+const_vel+passthrough+px4_setpoint,10,5,0.500,0.237,0.763,0,17.200,14.800,39.200,23.640,1.050,1.601
+evade,pipeline/tail_chase+gru+passthrough+px4_setpoint,10,6,0.600,0.313,0.832,0,29.450,27.300,31.300,36.855,0.998,2.179
+evade,pipeline/rendezvous+gru+mpc_12state+px4_setpoint,10,10,1.000,0.722,1.000,0,17.250,11.100,25.475,25.225,0.832,0.993
+evade,pipeline/rendezvous+gru+passthrough+se3,10,7,0.700,0.397,0.892,0,11.000,9.800,17.850,18.290,0.913,1.778
+evade,bt/rendezvous+gru,10,7,0.700,0.397,0.892,1,14.400,11.200,26.950,18.630,0.996,2.662

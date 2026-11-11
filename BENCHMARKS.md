@@ -175,6 +175,23 @@ to AUTO.RTL. The guidance node only logs its own check and flies on.
   approach was a median 1.0–1.6 m. The heads judge capture on the interceptor's
   MAVROS odometry, whose position error at a declared capture is a median 0.52 m
   (B14 odometry run below), mostly the EKF height.
+- **A follow-through does not remove them (6 Nov,
+  [`benchmarks/2026-11-06_follow_through/`](benchmarks/2026-11-06_follow_through/)).**
+  The six FSM/BT methods re-run with `follow_through:=2.0` (the head keeps
+  pursuing 2 s after its capture check before AUTO.RTL; `pipeline_fsm` a2ab06a,
+  `shaheen_states` 46886a3), same referee and seeds: 87/120 against 78/120
+  without (p = 0.27; circle 46 vs 45, evade 41 vs 33). 18 of 41 declarations
+  became true captures (22 of 55 without), and misses after a declaration fell
+  from 33 to 23. It cannot help when the estimate itself is off: in the smoke
+  round the FSM saw the target 0.32 m away while Gazebo never had it closer
+  than 1.37 m (0.62 against 3.08 m in another trial), and the head homes on the
+  estimate. The remaining lever is the interceptor's self-position.
+- **Single cells move by up to 6/10 between runs with nothing changed.** In the
+  follow-through run SE(3) on the circle fell from 10/10 to 4/10 and the BT head
+  stayed at 9–10/10 although neither declared a capture there, so the follow-through
+  never acted; tail chase on the circle rose from 3/10 to 9/10 with 2
+  declarations. Treat per-cell differences between runs, and the per-method
+  ranking below, as indicative.
 - **Pure pursuit at 6 m/s is the most reliable method:** 18/20 (8/10 circle,
   10/10 evade), no misses, a median 12.4 and 13.3 s from liftoff. Its 2
   non-captures are timeouts on the circle.
