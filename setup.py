@@ -59,6 +59,7 @@ setup(
             'offboard_manager = drone_interception_sim.offboard_manager:main',
             'pipeline_fsm = drone_interception_sim.pipeline_fsm:main',
             'pipeline_viz = drone_interception_sim.pipeline_viz:main',
+            'gz_mocap = drone_interception_sim.gz_mocap:main',
         ],
     },
 )

@@ -32,8 +32,10 @@ Usage:
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 # RMW NOTE: this launch deliberately does NOT set RMW_IMPLEMENTATION. ros2
@@ -103,6 +105,35 @@ def generate_launch_description():
 
     # Delay the target so the interceptor's PX4 brings up the single gz server first.
     delayed_target = TimerAction(period=target_spawn_delay, actions=[target])
+
+    # Motion-capture self-position (mocap:=true): Gazebo's poses into both PX4
+    # EKFs as external vision. PX4 must boot with gz_mocap.MOCAP_PX4_PARAMS for
+    # vision to be the position reference (run_benchmark.py: self_position: mocap).
+    mocap = Node(
+        package='drone_interception_sim',
+        executable='gz_mocap',
+        name='gz_mocap',
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('mocap')),
+        additional_env={'GZ_PARTITION': gz_partition},
+        arguments=[
+            '--world',
+            world,
+            '--partition',
+            gz_partition,
+            '--model',
+            # gpu:=false spawns the camera-less x500 (interceptor.launch.py)
+            PythonExpression(
+                [
+                    "'x500_0:0,0' if '",
+                    LaunchConfiguration('gpu'),
+                    "' == 'false' else 'x500_d435_0:0,0'",
+                ]
+            ),
+            '--model',
+            ['x3_uav_1:', target_x, ',0'],
+        ],
+    )
 
     return LaunchDescription(
         [
@@ -182,6 +213,13 @@ def generate_launch_description():
                 description="RViz body mesh: '' = real per-drone meshes (default), "
                 "'none' = animated geometric quads",
             ),
+            DeclareLaunchArgument(
+                'mocap',
+                default_value='false',
+                description='true = feed Gazebo poses to both EKFs as motion capture '
+                '(needs gz_mocap.MOCAP_PX4_PARAMS in PX4)',
+            ),
+            mocap,
             interceptor,
             delayed_target,
         ]

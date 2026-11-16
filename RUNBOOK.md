@@ -51,6 +51,19 @@ ros2 launch drone_interception_sim interception.launch.py
 # health check (separate terminal — same RMW + domain):
 src/drone_interception_sim/scripts/check_sim.sh      # expect connected: true x2
 ```
+Motion-capture self-position (both drones' EKFs on Gazebo's poses instead of
+GPS + barometer, cm-level; `drone_interception_sim/gz_mocap.py`): launch with
+`mocap:=true` **and** boot PX4 with `gz_mocap.MOCAP_PX4_PARAMS` on instances 0
+and 1. PX4 reads those EKF parameters only at boot and saves them, so the
+benchmark runner handles both (`self_position: mocap` or `--self-position mocap`:
+it checks the instances after each start, sets and restarts if needed, and puts
+the defaults back at the end). By hand: start the sim with `mocap:=true`, run
+`px4-param --instance N set <name> <value>` for each entry on both instances,
+restart. Undo the same way with `DEFAULT_PX4_PARAMS`: with the mocap set saved
+and no `mocap:=true` feed, neither drone has a position and the target never
+takes off. PX4 also resets all saved parameters when the airframe changes
+(e.g. `gpu:=false` swaps `x500_d435` for `x500`).
+
 Single drone only (for RL high-level / quick checks):
 ```bash
 ros2 launch drone_interception_sim interceptor.launch.py

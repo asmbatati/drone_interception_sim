@@ -54,7 +54,15 @@ described in a YAML file (see ``benchmarks/campaigns/*.yaml``):
   ``false_capture``. ``true_outcome`` is empty when no poses arrived;
 * ``referee: gazebo`` in the campaign makes the metrics logger itself judge
   range and capture on Gazebo's poses, so a trial runs until a true capture
-  (the metrics outcome and ``true_outcome`` then agree).
+  (the metrics outcome and ``true_outcome`` then agree);
+* ``self_position`` sets how both drones' PX4 EKFs know where they are:
+  ``gps`` (default; simulated GPS and barometer, 0.3-0.5 m off at capture) or
+  ``mocap`` (Gazebo's poses as external vision, ``gz_mocap``; cm-level). PX4
+  reads these EKF parameters only at boot and keeps them in
+  ``rootfs/<instance>/parameters.bson``, so after each sim start the runner
+  compares both instances with the set for the condition
+  (``gz_mocap.MOCAP_PX4_PARAMS`` / ``DEFAULT_PX4_PARAMS``) and, if any differs,
+  sets them and restarts the sim. A ``gps`` campaign so also undoes a ``mocap`` one.
 
 All rows land in ``<out>/results.csv`` (the metrics summary format plus
 ``scenario`` and ``trial``, then the two true-range columns); per-trial 10 Hz
@@ -77,6 +85,8 @@ import signal
 import subprocess
 import sys
 import time
+
+from drone_interception_sim.gz_mocap import DEFAULT_PX4_PARAMS, MOCAP_PX4_PARAMS
 
 import yaml
 
@@ -309,6 +319,9 @@ class Runner:
             cfg.get('px4_dir', os.environ.get('PX4_DIR', '~/drone_interception_ws/PX4-Autopilot'))
         )
         self.max_retries = int(cfg.get('max_retries', 2))
+        self.self_position = str(cfg.get('self_position', 'gps'))
+        if self.self_position not in ('gps', 'mocap'):
+            raise SystemExit(f'self_position must be gps or mocap, not {self.self_position!r}')
         self.watch = None if dry_run else Watch()
         self.gz = None
         self.row_time = None  # wall time the last summary row was written
@@ -351,6 +364,8 @@ class Runner:
     def _sim_args(self, scen):
         args = dict(self.cfg.get('sim_args') or {})
         args.update({'gz_partition': self.partition, 'ros_domain_id': self.domain})
+        if self.self_position == 'mocap':
+            args['mocap'] = 'true'
         args.update(self.cfg['scenarios'][scen] or {})
         return [f'{k}:={v}' for k, v in args.items()]
 
@@ -364,7 +379,7 @@ class Runner:
         self.sim = None
         self.sim_scenario = None
 
-    def start_sim(self, scen):
+    def start_sim(self, scen, params_synced=False):
         self.stop_sim()
         argv = [
             'ros2',
@@ -376,6 +391,8 @@ class Runner:
         self.sim = self._spawn(argv, f'sim_{scen}_{int(time.time())}.log')
         self.sim_scenario = scen
         self.watch.reset()
+        if not params_synced and not self.sync_boot_params():
+            return self.start_sim(scen, params_synced=True)  # boot with the new set
         # good starts are ready in ~20 s even under load; a start that is not
         # ready by then has a stuck target and only wastes the wait
         wait = float(self.cfg.get('sim_ready_timeout', 60.0))
@@ -393,6 +410,71 @@ class Runner:
                 self.set_px4_params()
                 return True
         log(f'sim did not become ready in {wait:g} s ' f'({self.watch.describe("target")})')
+        return False
+
+    def _px4_tool(self, tool):
+        return os.path.join(self.px4_dir, 'build', 'px4_sitl_default', 'bin', tool)
+
+    def px4_param(self, instance, name):
+        """Value of PX4 parameter ``name`` on ``instance`` (float), or None if PX4 is not up."""
+        try:
+            r = subprocess.run(
+                [self._px4_tool('px4-param'), '--instance', str(instance), 'show', name],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                cwd=os.path.join(self.px4_dir, 'build', 'px4_sitl_default'),
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        for line in r.stdout.splitlines():  # 'x   EKF2_GPS_CTRL [365,588] : 7'
+            head, sep, value = line.rpartition(':')
+            if sep and head.split()[-2:-1] == [name]:
+                try:
+                    return float(value)
+                except ValueError:
+                    return None
+        return None
+
+    def sync_boot_params(self, instances=(0, 1), wait=45.0):
+        """Check both PX4 instances boot with the EKF set for ``self_position``.
+
+        Returns True if they do. Otherwise sets the set (PX4 saves it) and returns
+        False: the sim must be restarted for the EKFs to start with it.
+        """
+        want = MOCAP_PX4_PARAMS if self.self_position == 'mocap' else DEFAULT_PX4_PARAMS
+        if not os.path.exists(self._px4_tool('px4-param')):
+            return True
+        wrong = {}
+        for i in instances:
+            t_end = time.monotonic() + wait
+            have = self.px4_param(i, 'EKF2_GPS_CTRL')
+            while have is None and time.monotonic() < t_end:  # instance 1 boots ~8 s later
+                self.watch.spin(1.0)
+                have = self.px4_param(i, 'EKF2_GPS_CTRL')
+            if have is None:
+                log(f'px4 instance {i} not answering: boot params not checked')
+                continue
+            for name, value in want.items():
+                cur = self.px4_param(i, name)
+                if cur is None or abs(cur - float(value)) > 1e-4:
+                    wrong[(i, name)] = cur
+        if not wrong:
+            log(f'px4 boot params match self_position={self.self_position}')
+            return True
+        for (i, name), cur in sorted(wrong.items()):
+            subprocess.run(
+                [self._px4_tool('px4-param'), '--instance', str(i), 'set', name, str(want[name])],
+                capture_output=True,
+                timeout=20,
+                cwd=os.path.join(self.px4_dir, 'build', 'px4_sitl_default'),
+            )
+        self.watch.spin(3.0)  # PX4 saves the parameter file a moment after a set
+        log(
+            f'px4 boot params set for self_position={self.self_position} '
+            f'({", ".join(f"{i}:{n} {c}->{want[n]}" for (i, n), c in sorted(wrong.items()))}); '
+            'restarting the sim'
+        )
         return False
 
     def set_px4_params(self):
@@ -664,8 +746,28 @@ class Runner:
         if not self.dry_run:
             self._bring_home()
             if self.manage_sim:
+                self.restore_default_params()
                 self.stop_sim()
             self.watch.close()
+
+    def restore_default_params(self, instances=(0, 1)):
+        """After a ``mocap`` campaign, save the GPS + baro EKF set back into PX4.
+
+        Without it the next plain launch (no ``mocap:=true`` feed) boots both EKFs
+        with vision as their only position source and neither drone can fly.
+        """
+        if self.self_position != 'mocap' or self.sim is None:
+            return
+        for i in instances:
+            for name, value in DEFAULT_PX4_PARAMS.items():
+                subprocess.run(
+                    [self._px4_tool('px4-param'), '--instance', str(i), 'set', name, str(value)],
+                    capture_output=True,
+                    timeout=20,
+                    cwd=os.path.join(self.px4_dir, 'build', 'px4_sitl_default'),
+                )
+        time.sleep(3.0)  # PX4 saves the parameter file a moment after a set
+        log('px4 boot params restored to self_position=gps for the next boot')
 
 
 def main():
@@ -677,12 +779,19 @@ def main():
     )
     p.add_argument('--scenario', action='append', help='run only these scenarios (repeatable)')
     p.add_argument('--trials', type=int, help='override the campaign trial count')
+    p.add_argument(
+        '--self-position',
+        choices=('gps', 'mocap'),
+        help="override the campaign's self_position (both drones' EKF aiding)",
+    )
     p.add_argument('--dry-run', action='store_true', help='print the launches only')
     a = p.parse_args()
     with open(a.campaign) as f:
         cfg = yaml.safe_load(f)
     if a.trials is not None:
         cfg['trials'] = a.trials
+    if a.self_position is not None:
+        cfg['self_position'] = a.self_position
     os.makedirs(a.out, exist_ok=True)
     with open(os.path.join(a.out, 'campaign.yaml'), 'w') as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
@@ -692,6 +801,7 @@ def main():
     except KeyboardInterrupt:
         log('interrupted')
         if r.manage_sim and not a.dry_run:
+            r.restore_default_params()
             r.stop_sim()
         sys.exit(130)
 
