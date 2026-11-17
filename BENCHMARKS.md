@@ -2,13 +2,57 @@
 
 Capture benchmark of every interception method that flies in the two-drone
 scene, 10 trials per method and target behaviour, run with
-`scripts/run_benchmark.py`. The current numbers are the Gazebo-refereed
-campaign of 4–6 Nov 2026 (next section; Findings and Caveats below refer to
-it). The odometry-refereed campaign of 30 Oct – 2 Nov
+`scripts/run_benchmark.py`. Two current, Gazebo-refereed campaigns differ only in
+how both drones know their own position: motion capture (16 Nov 2026, next
+section: the guidance comparison) and PX4's simulated GPS + barometer (4–6 Nov,
+the section after: the outdoor-realistic figure; Findings and Caveats below were
+written for it). The odometry-refereed campaign of 30 Oct – 2 Nov
 ([`benchmarks/2026-10-30_pipeline_vs_pn/`](benchmarks/2026-10-30_pipeline_vs_pn/))
 and the June 2026 single-run table are kept for history.
 
-## Gazebo-refereed results (B14, 4–6 Nov 2026): read this first
+## Motion-capture self-position, Gazebo-refereed (B16, 16 Nov 2026)
+
+The same campaign as the next section (10 methods, circle and evade, 10 trials
+each, seed 1, `referee: gazebo`) with one condition changed: **both drones' PX4
+EKFs fuse Gazebo's own pose of the drone as external vision** instead of the
+simulated GPS and barometer (`gz_mocap.py`, `run_benchmark.py --self-position
+mocap`, `drone_interception_sim` 0e86a17). This is the simulated equivalent of an
+indoor motion-capture system. Under GPS + barometer the EKF put the
+interceptor 0.5 m too high and the target 0.3 m too low at capture (B16 in
+`ROADMAP.md`); with motion capture, odometry and Gazebo agree to within 3.5 cm in
+a takeoff-hover-land test and the odometry range at capture is within 0.01 m of
+Gazebo's (p90). Target sensing is unchanged (ground-truth detection of the
+target's odometry). 200 valid trials, no infrastructure faults, 19 sim starts.
+Data: [`benchmarks/2026-11-16_b14_mocap/`](benchmarks/2026-11-16_b14_mocap/).
+
+| method | circle captures | liftoff-to-capture median (s) | evade captures | liftoff-to-capture median (s) | GPS + baro (circle / evade) |
+|---|---|---|---|---|---|
+| rendezvous+gru | **10/10** | 12.7 | 9/10 | 19.6 | 8 / 4 |
+| rendezvous+const_vel | **10/10** | 9.8 | **10/10** | 22.4 | 7 / 5 |
+| tail_chase+gru | **10/10** | 11.9 | **10/10** | 21.0 | 3 / 5 |
+| rendezvous+gru+mpc_12state | **10/10** | 9.6 | **10/10** | 11.4 | 8 / 7 |
+| rendezvous+gru+se3 | 8/10 | 9.6 | 4/10 | 10.6 | 10 / 4 |
+| bt/rendezvous+gru | **10/10** | 6.6 | 9/10 | 10.0 | 9 / 8 |
+| pn | 2/10 | 10.6 | 0/10 | — | 1 / 1 |
+| pursuit | **10/10** | 8.2 | **10/10** | 8.9 | 8 / 10 |
+| pn_int | 8/10 | 8.2 | 7/10 | 8.1 | 6 / 2 |
+| rl/model_evasive_40k | 0/10 | — | 0/10 | — | 0 / 0 |
+
+Total **147/200** (74 %), against 106/200 under GPS + barometer (Fisher exact
+p = 3e-5); misses fell from 60 to 23. Per method over both scenarios the gain is
+significant at p < 0.05 for rendezvous+gru (19 vs 12 of 20), rendezvous+const_vel
+(20 vs 12), tail_chase+gru (20 vs 8), mpc_12state (20 vs 15) and pn_int (15 vs 7):
+these were limited by the self-position error. SE3 (12 vs 14), BT (19 vs 17),
+pursuit (20 vs 18), PN (2 vs 2) and RL (0 vs 0) did not change measurably, so
+their limits lie elsewhere (SE3 on evade, PN's gain; the RL policy was trained
+against a 0.5 m/s target, this one flies 2.4 m/s).
+With motion capture the four FSM-pipeline planners, BT and pursuit all reach
+19–20 of 20; at 10 trials per cell they are not separable from each other, and
+the comparison between them rests on time to capture. Here pursuit (8–9 s)
+and BT (7–10 s) are fastest and the FSM pipeline is slower (10–22 s; its time
+includes the AUTO.TAKEOFF climb before OFFBOARD).
+
+## Gazebo-refereed results, GPS + barometer self-position (B14, 4–6 Nov 2026)
 
 The same campaign (10 methods, circle and evade, 10 trials each, seed 1) with
 `referee: gazebo`: the metrics logger judges range and capture on Gazebo's own
